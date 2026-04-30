@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>WorkTrust — Login</title>
+<link rel="stylesheet" href="css/base.css"/>
+<style>
+body{min-height:100vh;display:flex}
+.split{display:grid;grid-template-columns:1fr 1fr;width:100%;min-height:100vh}
+.left{background:var(--slate);display:flex;flex-direction:column;justify-content:center;padding:3rem;position:relative;overflow:hidden}
+.left::before{content:'';position:absolute;top:-80px;right:-80px;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(193,80,46,0.3),transparent 65%)}
+.left::after{content:'';position:absolute;bottom:-60px;left:-60px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(212,134,26,0.2),transparent 65%)}
+.brand{font-size:1.8rem;margin-bottom:2.5rem;position:relative;z-index:1}
+.brand .brand-work{color:var(--terracotta-light)}
+.headline{font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:900;color:white;line-height:1.2;margin-bottom:1rem;position:relative;z-index:1;letter-spacing:-0.02em}
+.headline em{color:var(--terracotta-light);font-style:normal}
+.desc{font-size:0.9rem;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:1.5rem;position:relative;z-index:1;max-width:340px}
+.features{position:relative;z-index:1}
+.feat{display:flex;align-items:center;gap:12px;margin-bottom:10px;font-size:0.85rem;color:rgba(255,255,255,0.65)}
+.feat-icon{width:30px;height:30px;border-radius:8px;background:rgba(193,80,46,0.25);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0}
+
+.right{display:flex;flex-direction:column;justify-content:center;padding:3rem;background:var(--warm-white);overflow-y:auto}
+.panel{max-width:420px;margin:0 auto;width:100%}
+
+/* Tabs */
+.tabs{display:flex;background:var(--cream-dark);border-radius:10px;padding:3px;margin-bottom:2rem}
+.tab{flex:1;padding:9px;border:none;background:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:600;color:var(--text-muted);cursor:pointer;transition:all 0.2s}
+.tab.active{background:white;color:var(--slate);box-shadow:var(--shadow-sm)}
+
+/* Role selector */
+.role-cards{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem}
+.role-card{padding:1.25rem;border:2px solid var(--border);border-radius:var(--radius);cursor:pointer;text-align:center;transition:all 0.2s;background:white}
+.role-card:hover{border-color:var(--terracotta);background:rgba(193,80,46,0.03)}
+.role-card.selected{border-color:var(--terracotta);background:rgba(193,80,46,0.06)}
+.role-card-icon{font-size:2rem;margin-bottom:8px}
+.role-card-title{font-weight:700;font-size:0.95rem;color:var(--slate)}
+.role-card-sub{font-size:0.75rem;color:var(--text-muted);margin-top:3px}
+
+/* Steps */
+.progress-bar{height:4px;background:var(--cream-dark);border-radius:100px;margin-bottom:1.5rem;overflow:hidden}
+.progress-fill{height:100%;background:linear-gradient(90deg,var(--terracotta),var(--amber-light));border-radius:100px;transition:width 0.4s}
+.step-dots{display:flex;align-items:center;gap:0;margin-bottom:1.5rem}
+.step-dot{width:26px;height:26px;border-radius:50%;background:var(--cream-dark);color:var(--text-muted);display:flex;align-items:center;justify-content:center;font-size:0.72rem;font-weight:700;flex-shrink:0;transition:all 0.2s}
+.step-dot.active{background:var(--terracotta);color:white}
+.step-dot.done{background:var(--green);color:white}
+.step-line{flex:1;height:2px;background:var(--cream-dark);transition:background 0.2s}
+.step-line.done{background:var(--green)}
+.form-heading{font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:var(--slate);margin-bottom:0.2rem;letter-spacing:-0.02em}
+.form-sub{font-size:0.82rem;color:var(--text-muted);margin-bottom:1.5rem}
+.btn-row{display:flex;gap:10px}
+.btn-back{width:auto;padding:12px 18px}
+
+/* Avatar upload */
+.avatar-upload-wrap{display:flex;align-items:center;gap:1rem;margin-bottom:1rem}
+.avatar-preview{width:72px;height:72px;border-radius:50%;background:linear-gradient(135deg,var(--terracotta),var(--amber));display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:700;color:white;flex-shrink:0;overflow:hidden;border:3px solid var(--cream-dark)}
+.avatar-preview img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.upload-btn-label{padding:8px 16px;border:1.5px dashed var(--terracotta);border-radius:8px;color:var(--terracotta);font-size:0.82rem;font-weight:600;cursor:pointer;transition:all 0.2s}
+.upload-btn-label:hover{background:rgba(193,80,46,0.06)}
+.map-hint{display:flex;align-items:center;gap:6px;padding:8px 12px;background:rgba(193,80,46,0.06);border:1px solid rgba(193,80,46,0.15);border-radius:8px;font-size:0.78rem;color:var(--terracotta);margin-top:6px;cursor:pointer;transition:all 0.2s}
+.map-hint:hover{background:rgba(193,80,46,0.12)}
+.avail-toggle-row{display:flex;align-items:center;gap:14px;padding:12px 16px;background:var(--cream);border-radius:10px;border:1.5px solid var(--border);cursor:pointer;margin-bottom:1rem}
+
+@media(max-width:768px){
+  .split{grid-template-columns:1fr}
+  .left{display:none}
+  .right{padding:2rem 1.5rem;min-height:100vh;justify-content:flex-start;padding-top:3rem}
+}
+</style>
+</head>
+<body>
+<div class="split">
+  <div class="left">
+    <div class="brand brand-lockup"><span class="brand-trust">Trust</span><span class="brand-work">ವರ್ಕ್</span></div>
+    <div class="headline">Your skills.<br>Your <em>reputation.</em><br>Yours forever.</div>
+    <div class="desc">India's first portable digital identity for gig workers. Build once, carry everywhere.</div>
+    <div class="features">
+      <div class="feat"><div class="feat-icon">🔐</div>DigiLocker-verified documents + Blockchain</div>
+      <div class="feat"><div class="feat-icon">⛓️</div>Tamper-proof work history on-chain</div>
+      <div class="feat"><div class="feat-icon">📱</div>QR-verified reviews, one per client</div>
+      <div class="feat"><div class="feat-icon">📍</div>Swiggy-style live worker tracking</div>
+    </div>
+  </div>
+
+  <div class="right">
+    <div class="panel">
+      <div class="tabs">
+        <button class="tab active" onclick="showTab('login')">Login</button>
+        <button class="tab" onclick="showTab('register')">Register</button>
+      </div>
+
+      <!-- LOGIN -->
+      <div id="loginPanel">
+        <div class="form-heading">Welcome back</div>
+        <div class="form-sub">Sign in to your WorkTrust account</div>
+        <div class="form-group"><label class="form-label">Email</label>
+          <input type="email" class="form-control" id="lEmail" placeholder="you@example.com"/></div>
+        <div class="form-group"><label class="form-label">Password</label>
+          <input type="password" class="form-control" id="lPass" placeholder="••••••••"/>
+          <div class="err" id="loginErr">Invalid email or password.</div></div>
+        <button class="btn btn-primary" onclick="doLogin()" id="loginBtn">Sign In →</button>
+        <div style="text-align:center;margin-top:1rem;font-size:0.82rem;color:var(--text-muted)">
+          <strong>Demo:</strong> ravi@worktrust.in / password123
+        </div>
+      </div>
+
+      <!-- REGISTER -->
+      <div id="registerPanel" class="hidden">
+        <div class="form-heading">Create Account</div>
+        <div class="form-sub">Step <span id="stepNum">0</span> of <span id="totalSteps">4</span></div>
+        <div class="progress-bar"><div class="progress-fill" id="progFill" style="width:0%"></div></div>
+        <div class="step-dots" id="stepDots"></div>
+
+        <!-- STEP 0: Role Selection -->
+        <div class="reg-step" id="regStep0">
+          <div style="font-size:0.9rem;font-weight:600;color:var(--text-secondary);margin-bottom:1rem;">I am a...</div>
+          <div class="role-cards">
+            <div class="role-card" id="roleWorker" onclick="selectRole('worker')">
+              <div class="role-card-icon">🔧</div>
+              <div class="role-card-title">Worker</div>
+              <div class="role-card-sub">Electrician, Plumber, etc.</div>
+            </div>
+            <div class="role-card" id="roleClient" onclick="selectRole('client')">
+              <div class="role-card-icon">🏠</div>
+              <div class="role-card-title">Client</div>
+              <div class="role-card-sub">Looking to hire workers</div>
+            </div>
+          </div>
+          <div class="err show" id="errRole" style="display:none">Please select a role to continue.</div>
+          <button class="btn btn-primary" onclick="nextStep(0)">Continue →</button>
+        </div>
+
+        <!-- STEP 1: Email + Password -->
+        <div class="reg-step hidden" id="regStep1">
+          <div class="form-group"><label class="form-label">Email Address *</label>
+            <input type="email" class="form-control" id="rEmail" placeholder="your@email.com"/>
+            <div class="err" id="errEmail">Enter a valid email.</div></div>
+          <div class="form-group"><label class="form-label">Password *</label>
+            <input type="password" class="form-control" id="rPass" placeholder="Min 6 characters"/></div>
+          <div class="form-group"><label class="form-label">Confirm Password *</label>
+            <input type="password" class="form-control" id="rPass2" placeholder="Repeat password"/>
+            <div class="err" id="errPass">Passwords don't match.</div></div>
+          <div class="btn-row">
+            <button class="btn btn-secondary btn-back" onclick="prevStep(1)">← Back</button>
+            <button class="btn btn-primary" onclick="nextStep(1)">Continue →</button>
+          </div>
+        </div>
+
+        <!-- STEP 2: Name + Trade + Avatar (dynamic) -->
+        <div class="reg-step hidden" id="regStep2">
+          <div class="form-group">
+            <label class="form-label">Profile Photo (optional)</label>
+            <div class="avatar-upload-wrap">
+              <div class="avatar-preview" id="avatarPreview">?</div>
+              <div>
+                <label class="upload-btn-label" for="avatarFile">📷 Upload Photo</label>
+                <input type="file" id="avatarFile" accept="image/*" style="display:none" onchange="previewAvatar(this)"/>
+                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">JPEG/PNG, max 5MB</div>
+              </div>
+            </div>
+          </div>
+          <div class="form-group"><label class="form-label">Full Name *</label>
+            <input type="text" class="form-control" id="rName" placeholder="e.g. Ravi Kumar"/></div>
+          <div class="form-group"><label class="form-label" id="tradeLabel">Primary Trade *</label>
+            <select class="form-control" id="rTrade">
+              <option value="">Select trade</option>
+              <option>Electrician</option><option>Plumber</option><option>Carpenter</option>
+              <option>Painter</option><option>HVAC Technician</option><option>Welder</option>
+              <option>Mason / Civil Worker</option><option>Delivery Agent</option>
+              <option>Driver</option><option>Domestic Worker</option><option>Cook / Chef</option>
+              <option>Security Guard</option><option>Freelancer (IT/Design)</option><option>Other</option>
+            </select></div>
+          <div class="form-group" id="expGroup">
+            <label class="form-label">Years of Experience *</label>
+            <input type="number" class="form-control" id="rExp" placeholder="e.g. 9" min="0" max="60"/>
+          </div>
+          <div class="form-group"><label class="form-label">Mobile Number (WhatsApp)</label>
+            <input type="tel" class="form-control" id="rPhone" placeholder="9876543210" maxlength="10"/></div>
+          <div class="err" id="errStep2">Please fill all required fields.</div>
+          <div class="btn-row">
+            <button class="btn btn-secondary btn-back" onclick="prevStep(2)">← Back</button>
+            <button class="btn btn-primary" onclick="nextStep(2)">Continue →</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: Address -->
+        <div class="reg-step hidden" id="regStep3">
+          <div class="form-group"><label class="form-label">House / Street *</label>
+            <input type="text" class="form-control" id="rStreet" placeholder="e.g. 12B Linking Road"/></div>
+          <div class="form-group"><label class="form-label">Area / Locality *</label>
+            <input type="text" class="form-control" id="rArea" placeholder="e.g. Bandra West"/></div>
+          <div class="form-grid-2">
+            <div class="form-group"><label class="form-label">City *</label>
+              <input type="text" class="form-control" id="rCity" placeholder="Mumbai"/></div>
+            <div class="form-group"><label class="form-label">State *</label>
+              <input type="text" class="form-control" id="rState" placeholder="Maharashtra"/></div>
+          </div>
+          <div class="form-group"><label class="form-label">PIN Code *</label>
+            <input type="text" class="form-control" id="rPin" placeholder="400050" maxlength="6"/>
+            <div class="err" id="errStep3">Fill all fields with valid 6-digit PIN.</div>
+          </div>
+          <div class="map-hint" onclick="detectLoc()">📍 Auto-fill via GPS</div>
+          <input type="hidden" id="rLat"/><input type="hidden" id="rLng"/>
+          <div class="btn-row" style="margin-top:1rem">
+            <button class="btn btn-secondary btn-back" onclick="prevStep(3)">← Back</button>
+            <button class="btn btn-primary" onclick="nextStep(3)">Continue →</button>
+          </div>
+        </div>
+
+        <!-- STEP 4: Worker rates / Client needs (dynamic) -->
+        <div class="reg-step hidden" id="regStep4">
+          <!-- Worker: rates + availability -->
+          <div id="workerExtras">
+            <div class="form-group">
+              <label class="form-label">Availability</label>
+              <div class="avail-toggle-row" onclick="toggleAvailReg()" id="availToggleReg">
+                <div class="toggle on" id="regToggle"></div>
+                <div>
+                  <div style="font-size:0.9rem;font-weight:600;" id="availRegLabel">Available Now</div>
+                  <div style="font-size:0.75rem;color:var(--text-muted)">Clients can book you right away</div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group"><label class="form-label">Service Radius</label>
+              <select class="form-control" id="rRadius">
+                <option value="10">Within 10 km</option><option value="20">Within 20 km</option>
+                <option value="30" selected>Within 30 km</option><option value="50">Within 50 km</option>
+              </select></div>
+            <div class="form-grid-2">
+              <div class="form-group"><label class="form-label">Hourly Rate (₹)</label>
+                <input type="number" class="form-control" id="rHourly" placeholder="450" min="0"/></div>
+              <div class="form-group"><label class="form-label">Per-Job Rate (₹)</label>
+                <input type="number" class="form-control" id="rJobRate" placeholder="2200" min="0"/></div>
+            </div>
+          </div>
+          <!-- Client: needed trades -->
+          <div id="clientExtras" class="hidden">
+            <div class="form-group">
+              <label class="form-label">What workers do you usually need?</label>
+              <div id="tradeCheckboxes" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;"></div>
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top:1rem">
+            <button class="btn btn-secondary btn-back" onclick="prevStep(4)">← Back</button>
+            <button class="btn btn-primary" onclick="doRegister()" id="regBtn">Create My Profile 🎉</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script src="js/api.js"></script>
+<script>
+if (API.isLoggedIn()) {
+  const u = API.getUser();
+  window.location.href = u?.role === 'worker' ? 'worker-profile.html' : 'client-home.html';
+}
+
+let selectedRole = '';
+let regAvailable = true;
+let currentStep  = 0;
+
+const WORKER_STEPS = 4; // 0..4
+const CLIENT_STEPS = 4;
+
+// Build step dots
+function buildDots(total) {
+  const c = document.getElementById('stepDots');
+  c.innerHTML = '';
+  for (let i=1;i<=total;i++) {
+    const d = document.createElement('div');
+    d.className = 'step-dot'; d.id = 'sd'+i; d.textContent = i;
+    c.appendChild(d);
+    if (i<total) { const l=document.createElement('div'); l.className='step-line'; l.id='sl'+i; c.appendChild(l); }
+  }
+}
+
+// Populate trade checkboxes for client
+function buildTradeCheckboxes() {
+  const trades = ['Electrician','Plumber','Carpenter','Painter','HVAC','Domestic Worker','Cook','Driver','Security Guard'];
+  document.getElementById('tradeCheckboxes').innerHTML = trades.map(t =>
+    `<label style="display:flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:500">
+      <input type="checkbox" value="${t}" style="accent-color:var(--terracotta)"/> ${t}
+    </label>`
+  ).join('');
+}
+
+function showTab(tab) {
+  document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',(tab==='login'&&i===0)||(tab==='register'&&i===1)));
+  document.getElementById('loginPanel').classList.toggle('hidden', tab!=='login');
+  document.getElementById('registerPanel').classList.toggle('hidden', tab!=='register');
+}
+
+function selectRole(role) {
+  selectedRole = role;
+  document.getElementById('roleWorker').classList.toggle('selected', role==='worker');
+  document.getElementById('roleClient').classList.toggle('selected', role==='client');
+}
+
+function setStep(n) {
+  document.querySelectorAll('.reg-step').forEach((s,i)=>s.classList.toggle('hidden',i!==n));
+  document.getElementById('stepNum').textContent = n;
+  const total = selectedRole==='client'?4:4;
+  document.getElementById('progFill').style.width = (n/(total)*100)+'%';
+  document.querySelectorAll('.step-dot').forEach((d,i)=>{
+    d.classList.toggle('active',i+1===n);
+    d.classList.toggle('done',i+1<n);
+  });
+  document.querySelectorAll('.step-line').forEach((l,i)=>l.classList.toggle('done',i+1<n));
+  currentStep = n;
+
+  // Dynamic UI based on role
+  if (n===2) {
+    document.getElementById('tradeLabel').textContent = selectedRole==='client' ? 'Primary Trade Needed *' : 'Primary Trade *';
+    document.getElementById('expGroup').classList.toggle('hidden', selectedRole==='client');
+  }
+  if (n===4) {
+    document.getElementById('workerExtras').classList.toggle('hidden', selectedRole!=='worker');
+    document.getElementById('clientExtras').classList.toggle('hidden', selectedRole!=='client');
+    if (selectedRole==='client') buildTradeCheckboxes();
+  }
+}
+
+function nextStep(from) {
+  if (from===0) {
+    if (!selectedRole) { document.getElementById('errRole').style.display='block'; return; }
+    document.getElementById('errRole').style.display='none';
+    buildDots(4);
+    document.getElementById('totalSteps').textContent = 4;
+  }
+  if (from===1) {
+    const email=document.getElementById('rEmail').value.trim();
+    const pass=document.getElementById('rPass').value;
+    const pass2=document.getElementById('rPass2').value;
+    if (!email||!email.includes('@')){ document.getElementById('errEmail').classList.add('show');return;}
+    document.getElementById('errEmail').classList.remove('show');
+    if (pass!==pass2||pass.length<6){ document.getElementById('errPass').classList.add('show');return;}
+    document.getElementById('errPass').classList.remove('show');
+  }
+  if (from===2) {
+    const name=document.getElementById('rName').value.trim();
+    const trade=document.getElementById('rTrade').value;
+    const exp=document.getElementById('rExp').value;
+    if (!name||!trade||(selectedRole==='worker'&&!exp)){
+      document.getElementById('errStep2').classList.add('show');return;
+    }
+    document.getElementById('errStep2').classList.remove('show');
+    // update avatar initials
+    const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const ap=document.getElementById('avatarPreview');
+    if (!ap.querySelector('img')) ap.textContent=initials;
+  }
+  if (from===3) {
+    const pin=document.getElementById('rPin').value.trim();
+    if(!document.getElementById('rStreet').value.trim()||!document.getElementById('rCity').value.trim()||!/^\d{6}$/.test(pin)){
+      document.getElementById('errStep3').classList.add('show');return;
+    }
+    document.getElementById('errStep3').classList.remove('show');
+  }
+  setStep(from+1);
+}
+
+function prevStep(from) { setStep(from-1); }
+
+function toggleAvailReg() {
+  regAvailable=!regAvailable;
+  document.getElementById('regToggle').classList.toggle('on',regAvailable);
+  document.getElementById('availRegLabel').textContent=regAvailable?'Available Now':'Currently Busy';
+}
+
+function previewAvatar(input) {
+  const file=input.files[0];
+  if (!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const ap=document.getElementById('avatarPreview');
+    ap.innerHTML=`<img src="${e.target.result}" alt="avatar"/>`;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function detectLoc() {
+  if (!navigator.geolocation){alert('Geolocation not supported');return;}
+  showToast('📍 Getting location...');
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const {latitude:lat,longitude:lng}=pos.coords;
+    document.getElementById('rLat').value=lat;
+    document.getElementById('rLng').value=lng;
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+      const d=await r.json();const a=d.address;
+      document.getElementById('rStreet').value=(a.road||a.pedestrian||'')+(a.house_number?' '+a.house_number:'');
+      document.getElementById('rArea').value=a.suburb||a.neighbourhood||a.county||'';
+      document.getElementById('rCity').value=a.city||a.town||a.village||'';
+      document.getElementById('rState').value=a.state||'';
+      document.getElementById('rPin').value=a.postcode||'';
+      showToast('✅ Location auto-filled!');
+    }catch{showToast('Could not auto-fill. Enter manually.');}
+  },()=>showToast('Location access denied.'));
+}
+
+async function doRegister() {
+  const btn=document.getElementById('regBtn');
+  btn.textContent='Creating profile...'; btn.disabled=true;
+  try {
+    const fd=new FormData();
+    fd.append('role',selectedRole);
+    fd.append('email',document.getElementById('rEmail').value.trim());
+    fd.append('password',document.getElementById('rPass').value);
+    fd.append('name',document.getElementById('rName').value.trim());
+    fd.append('phone',document.getElementById('rPhone').value.trim());
+    fd.append('street',document.getElementById('rStreet').value.trim());
+    fd.append('area',document.getElementById('rArea').value.trim());
+    fd.append('city',document.getElementById('rCity').value.trim());
+    fd.append('state',document.getElementById('rState').value.trim());
+    fd.append('pin',document.getElementById('rPin').value.trim());
+    fd.append('lat',document.getElementById('rLat').value||0);
+    fd.append('lng',document.getElementById('rLng').value||0);
+    if (selectedRole==='worker') {
+      fd.append('trade',document.getElementById('rTrade').value);
+      fd.append('experience',document.getElementById('rExp').value||0);
+      fd.append('available',regAvailable);
+      fd.append('serviceRadius',document.getElementById('rRadius').value||30);
+      fd.append('hourlyRate',document.getElementById('rHourly').value||450);
+      fd.append('jobRate',document.getElementById('rJobRate').value||2200);
+    } else {
+      fd.append('trade',document.getElementById('rTrade').value);
+      const checked=[...document.querySelectorAll('#tradeCheckboxes input:checked')].map(c=>c.value);
+      fd.append('neededTrades',JSON.stringify(checked));
+    }
+    const avatarFile=document.getElementById('avatarFile').files[0];
+    if (avatarFile) fd.append('avatar',avatarFile);
+
+    const data=await API.postForm('/auth/register',fd);
+    if (data.error){showToast('❌ '+data.error);btn.textContent='Create My Profile 🎉';btn.disabled=false;return;}
+    API.setSession(data.token,data.user);
+    showToast('🎉 Profile created!');
+    setTimeout(()=>window.location.href=data.user.role==='worker'?'worker-profile.html':'client-home.html',700);
+  } catch(e){ showToast('❌ '+e.message); btn.textContent='Create My Profile 🎉'; btn.disabled=false; }
+}
+
+async function doLogin() {
+  const btn=document.getElementById('loginBtn');
+  btn.textContent='Signing in...'; btn.disabled=true;
+  const data=await API.post('/auth/login',{
+    email:document.getElementById('lEmail').value.trim(),
+    password:document.getElementById('lPass').value
+  });
+  if (data.error){
+    document.getElementById('loginErr').classList.add('show');
+    btn.textContent='Sign In →'; btn.disabled=false; return;
+  }
+  API.setSession(data.token,data.user);
+  window.location.href=data.user.role==='worker'?'worker-profile.html':'client-home.html';
+}
+
+function showToast(msg,dur=2500){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),dur);
+}
+
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&!document.getElementById('loginPanel').classList.contains('hidden')) doLogin();
+});
+</script>
+</body>
+</html>

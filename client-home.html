@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WorkTrust - Find Workers</title>
+  <link rel="stylesheet" href="css/base.css" />
+  <style>
+    .hero{padding:2.25rem 0 1.25rem}
+    .hero h1{font-family:'Playfair Display',serif;font-size:clamp(2rem,4vw,3.5rem);line-height:1.05;color:var(--slate);margin-bottom:0.75rem}
+    .hero p{max-width:680px;color:var(--text-secondary);font-size:1rem}
+    .filters{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;margin:1.5rem 0 2rem}
+    .worker-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+    .worker-card{display:flex;flex-direction:column;gap:14px}
+    .worker-top{display:flex;gap:12px;align-items:center}
+    .worker-avatar{width:52px;height:52px;font-size:1.2rem;overflow:hidden}
+    .worker-avatar img{width:100%;height:100%;object-fit:cover}
+    .worker-name{font-weight:800;color:var(--slate);font-size:1.05rem}
+    .worker-meta{font-size:0.85rem;color:var(--text-secondary)}
+    .score-row{display:flex;gap:8px;flex-wrap:wrap}
+    .score-pill{background:var(--cream);border:1px solid var(--border);border-radius:100px;padding:5px 10px;font-size:0.78rem;font-weight:700;color:var(--slate)}
+    .card-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:auto}
+    .empty{padding:2rem;text-align:center;color:var(--text-secondary)}
+    .booking-popup{position:fixed;inset:0;background:rgba(30,37,48,0.45);display:none;align-items:center;justify-content:center;padding:1rem;z-index:800}
+    .booking-popup.show{display:flex}
+    .booking-dialog{width:100%;max-width:360px;background:white;border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);padding:1.5rem;text-align:center;border-top:4px solid var(--terracotta)}
+    .booking-icon{font-size:2.4rem;margin-bottom:0.5rem}
+    .booking-title{font-family:'Playfair Display',serif;font-weight:800;color:var(--slate);font-size:1.25rem;margin-bottom:0.35rem}
+    .booking-copy{font-size:0.88rem;color:var(--text-secondary);line-height:1.5;margin-bottom:1rem}
+    @media(max-width:700px){.filters{grid-template-columns:1fr}.card-actions{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <nav class="topnav">
+    <div class="nav-brand"><span class="brand-trust">Trust</span><span class="brand-work">ವರ್ಕ್</span></div>
+    <div class="nav-right">
+      <button class="nav-btn" onclick="refreshWorkers()">Refresh</button>
+      <button class="nav-btn" onclick="API.logout()">Logout</button>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section class="hero">
+      <h1>Find verified gig workers near you</h1>
+      <p>Browse available workers, compare reputation signals, and create a booking request from your client account.</p>
+    </section>
+
+    <section class="card">
+      <div class="filters">
+        <select class="form-control" id="tradeFilter">
+          <option value="">All trades</option>
+          <option>Electrician</option>
+          <option>Plumber</option>
+          <option>Carpenter</option>
+          <option>Painter</option>
+          <option>HVAC</option>
+          <option>Domestic Worker</option>
+          <option>Cook</option>
+          <option>Driver</option>
+          <option>Security Guard</option>
+        </select>
+        <input class="form-control" id="cityFilter" placeholder="City" />
+        <button class="btn btn-primary btn-sm" onclick="refreshWorkers()">Search</button>
+      </div>
+      <div id="workerGrid" class="worker-grid">
+        <div class="empty"><div class="spinner"></div></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="toast" id="toast"></div>
+  <div class="booking-popup" id="bookingPopup">
+    <div class="booking-dialog">
+      <div class="booking-icon" id="bookingIcon">✅</div>
+      <div class="booking-title" id="bookingTitle">Booking Request Sent</div>
+      <div class="booking-copy" id="bookingCopy">Your request has been sent to the worker.</div>
+      <button class="btn btn-primary" onclick="closeBookingPopup()">OK</button>
+    </div>
+  </div>
+  <script src="js/api.js"></script>
+  <script>
+    if (!API.isLoggedIn()) window.location.href = 'index.html';
+    const me = API.getUser();
+    if (me?.role === 'worker') window.location.href = 'worker-profile.html';
+
+    function toast(message) {
+      const el = document.getElementById('toast');
+      el.textContent = message;
+      el.classList.add('show');
+      setTimeout(() => el.classList.remove('show'), 2400);
+    }
+
+    function showBookingPopup(title, message, icon='✅') {
+      document.getElementById('bookingIcon').textContent = icon;
+      document.getElementById('bookingTitle').textContent = title;
+      document.getElementById('bookingCopy').textContent = message;
+      document.getElementById('bookingPopup').classList.add('show');
+    }
+
+    function closeBookingPopup() {
+      document.getElementById('bookingPopup').classList.remove('show');
+    }
+
+    function initials(name) {
+      return (name || 'W').split(' ').map(part => part[0]).slice(0, 2).join('').toUpperCase();
+    }
+
+    async function refreshWorkers() {
+      const grid = document.getElementById('workerGrid');
+      grid.innerHTML = '<div class="empty"><div class="spinner"></div></div>';
+      const params = new URLSearchParams();
+      const trade = document.getElementById('tradeFilter').value;
+      const city = document.getElementById('cityFilter').value.trim();
+      if (trade) params.set('trade', trade);
+      if (city) params.set('city', city);
+      const data = await API.get('/workers' + (params.toString() ? '?' + params : ''));
+      const workers = data.workers || [];
+      if (!workers.length) {
+        grid.innerHTML = '<div class="empty">No available workers found.</div>';
+        return;
+      }
+      grid.innerHTML = workers.map(worker => `
+        <article class="card worker-card">
+          <div class="worker-top">
+            <div class="avatar-circle worker-avatar">${worker.avatar ? `<img src="${worker.avatar}" alt="">` : initials(worker.name)}</div>
+            <div>
+              <div class="worker-name">${worker.name}</div>
+              <div class="worker-meta">${worker.trade || 'Gig Worker'} · ${worker.address?.city || 'Nearby'} · ${worker.experience || 0} yrs</div>
+            </div>
+          </div>
+          <div class="score-row">
+            <span class="score-pill">Trust ${worker.reputation?.score || 0}/100</span>
+            <span class="score-pill">${worker.reputation?.avgStar || 0} star</span>
+            <span class="score-pill">${worker.reputation?.totalReviews || 0} reviews</span>
+          </div>
+          <div class="worker-meta">Rate: Rs. ${worker.hourlyRate || 0}/hr · Job: Rs. ${worker.jobRate || 0}</div>
+          <div class="card-actions">
+            <a class="btn btn-secondary btn-sm" href="worker-profile.html?id=${worker._id}">View profile</a>
+            <button class="btn btn-primary btn-sm" onclick="bookWorker('${worker._id}', '${worker.name.replace(/'/g, "\\'")}', '${(worker.trade || 'Work').replace(/'/g, "\\'")}')">Book</button>
+          </div>
+        </article>
+      `).join('');
+    }
+
+    async function bookWorker(workerId, workerName, trade) {
+      const date = prompt('Booking date (YYYY-MM-DD)', new Date().toISOString().slice(0, 10));
+      if (!date) return;
+      const address = prompt('Work address', me?.address?.area || '');
+      if (!address) return;
+      const data = await API.post('/bookings', {
+        workerId,
+        clientId: me?._id,
+        clientName: me?.name || 'Client',
+        clientPhone: me?.phone || '',
+        workType: trade,
+        date,
+        timeSlot: 'Flexible',
+        address,
+        notes: `Booking request for ${workerName}`
+      });
+      if (data.ok) {
+        showBookingPopup(
+          'Booking Request Sent',
+          `Your request for ${workerName} has been sent. You will see the booking response shortly.`
+        );
+        pollBookingStatus(data.bookingId, workerName);
+      } else {
+        showBookingPopup('Booking Failed', data.error || 'Could not create booking. Please try again.', '❌');
+      }
+    }
+
+    function pollBookingStatus(bookingId, workerName) {
+      if (!bookingId) return;
+      let attempts = 0;
+      const timer = setInterval(async () => {
+        attempts += 1;
+        const data = await API.get('/bookings/' + bookingId + '/status');
+        if (data.status === 'accepted') {
+          clearInterval(timer);
+          showBookingPopup('Booking Accepted', `${workerName} accepted your request. Estimated arrival: ${data.etaMinutes || 20} minutes.`, '✅');
+        } else if (data.status === 'rejected') {
+          clearInterval(timer);
+          showBookingPopup('Worker Not Available', `${workerName} is not available for this booking. Please try another worker or time.`, '❌');
+        } else if (attempts >= 10) {
+          clearInterval(timer);
+        }
+      }, 1000);
+    }
+
+    refreshWorkers();
+  </script>
+</body>
+</html>

@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Leave a Review — WorkTrust</title>
+<link rel="stylesheet" href="css/base.css"/>
+<style>
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:1.5rem;background:var(--cream)}
+.wrap{width:100%;max-width:480px}
+.rv-header{background:var(--slate);border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:1.75rem;text-align:center;position:relative;overflow:hidden}
+.rv-header::before{content:'';position:absolute;top:-50px;right:-50px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(193,80,46,0.25),transparent 70%)}
+.w-avatar{width:64px;height:64px;border-radius:50%;background:linear-gradient(135deg,var(--terracotta),var(--amber));display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:1.5rem;font-weight:700;color:white;margin:0 auto 10px;border:3px solid rgba(255,255,255,0.15);position:relative;z-index:1;overflow:hidden}
+.w-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.w-name{font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:700;color:white;position:relative;z-index:1}
+.w-trade{font-size:0.8rem;color:rgba(255,255,255,0.5);position:relative;z-index:1;margin-top:3px}
+.qr-stamp{display:inline-flex;align-items:center;gap:5px;background:rgba(61,186,111,0.2);color:#5DD68B;padding:4px 12px;border-radius:100px;font-size:0.7rem;font-weight:600;margin-top:10px;position:relative;z-index:1}
+.rv-body{background:white;border-radius:0 0 var(--radius-lg) var(--radius-lg);padding:1.75rem;box-shadow:var(--shadow-lg)}
+.rv-step{display:none}.rv-step.active{display:block}
+.step-title{font-family:'Playfair Display',serif;font-size:1.05rem;font-weight:700;color:var(--slate);margin-bottom:1rem}
+.star-group{display:flex;gap:8px;margin-bottom:6px}
+.star-btn{font-size:1.8rem;cursor:pointer;color:#ddd;background:none;border:none;padding:0;line-height:1;transition:color 0.1s,transform 0.1s}
+.star-btn.active{color:var(--amber-light);transform:scale(1.1)}
+.sub-rating{margin-bottom:10px}
+.sub-rl{display:flex;justify-content:space-between;font-size:0.8rem;font-weight:600;color:var(--text-secondary);margin-bottom:4px}
+.sub-stars{display:flex;gap:3px}
+.sub-star{font-size:1.1rem;cursor:pointer;color:#ddd;background:none;border:none;padding:0;transition:color 0.1s}
+.sub-star.active{color:var(--amber-light)}
+.loc-btn{display:flex;align-items:center;gap:8px;padding:10px 14px;border:1.5px dashed var(--terracotta);border-radius:9px;background:rgba(193,80,46,0.04);color:var(--terracotta);font-family:'DM Sans',sans-serif;font-size:0.88rem;font-weight:600;cursor:pointer;width:100%;transition:all 0.2s}
+.loc-btn:hover{background:rgba(193,80,46,0.1)}
+.loc-display{font-size:0.78rem;color:var(--text-muted);margin-top:5px}
+.success-screen{text-align:center;padding:1rem 0}
+.success-icon{font-size:3rem;margin-bottom:10px;animation:bounceIn 0.5s ease}
+@keyframes bounceIn{0%{transform:scale(0)}60%{transform:scale(1.15)}100%{transform:scale(1)}}
+.tx-hash{font-family:monospace;font-size:0.65rem;color:var(--text-muted);word-break:break-all;margin-top:10px;padding:8px;background:var(--cream);border-radius:6px}
+.footer{text-align:center;margin-top:1.25rem;font-size:0.78rem;color:var(--text-muted)}
+.footer strong{color:var(--terracotta)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="rv-header">
+    <div class="w-avatar" id="rvAvatar">?</div>
+    <div class="w-name" id="rvName">Loading...</div>
+    <div class="w-trade" id="rvTrade">WorkTrust</div>
+    <div class="qr-stamp">📱 QR Verified Session</div>
+  </div>
+  <div class="rv-body">
+    <!-- Loading -->
+    <div class="rv-step active" id="rvLoading">
+      <div style="text-align:center;padding:2rem"><div class="spinner"></div><div style="margin-top:10px;color:var(--text-muted);font-size:0.85rem">Loading worker profile...</div></div>
+    </div>
+
+    <!-- Step 1: About you -->
+    <div class="rv-step" id="rvStep1">
+      <div class="step-title">Step 1 — About You</div>
+      <div class="form-group"><label class="form-label">Client Type *</label>
+        <select class="form-control" id="rvClientType">
+          <option value="">Select</option>
+          <option value="Residential">🏠 Residential</option>
+          <option value="Commercial">🏢 Commercial</option>
+          <option value="Industrial">🏭 Industrial</option>
+          <option value="Government">🏛️ Government</option>
+        </select></div>
+      <div class="form-group"><label class="form-label">Your Name *</label>
+        <input type="text" class="form-control" id="rvClientName" placeholder="e.g. Priya Deshmukh"/></div>
+      <div class="form-group"><label class="form-label">Your Location</label>
+        <button class="loc-btn" onclick="getRvLoc()">📍 Use My Current Location</button>
+        <div class="loc-display" id="rvLocDisplay">Not selected</div>
+        <input type="hidden" id="rvLat"/><input type="hidden" id="rvLng"/><input type="hidden" id="rvLocText"/>
+      </div>
+      <button class="btn btn-primary" onclick="rvNext(1)">Continue →</button>
+    </div>
+
+    <!-- Step 2: Work details -->
+    <div class="rv-step" id="rvStep2">
+      <div class="step-title">Step 2 — Work Details</div>
+      <div class="form-group"><label class="form-label">Type of Work *</label>
+        <select class="form-control" id="rvWorkType">
+          <option value="">Select</option>
+          <option>Full Electrical Wiring</option><option>Panel / MCB Installation</option>
+          <option>Fault Finding & Repair</option><option>CCTV / Security System</option>
+          <option>Solar Panel Wiring</option><option>Home Automation</option>
+          <option>Industrial Wiring</option><option>EV Charging Point</option>
+          <option>Plumbing — Full Fitting</option><option>Plumbing — Repair</option>
+          <option>Carpentry — Furniture</option><option>Painting</option><option>Other</option>
+        </select></div>
+      <div class="form-grid-2">
+        <div class="form-group"><label class="form-label">Date of Work *</label>
+          <input type="date" class="form-control" id="rvDateWork"/></div>
+        <div class="form-group"><label class="form-label">Days Taken</label>
+          <input type="number" class="form-control" id="rvDays" placeholder="e.g. 3" min="1"/></div>
+      </div>
+      <div class="btn-row"><button class="btn btn-secondary btn-back" onclick="rvPrev(2)">← Back</button>
+        <button class="btn btn-primary" onclick="rvNext(2)">Continue →</button></div>
+    </div>
+
+    <!-- Step 3: Ratings -->
+    <div class="rv-step" id="rvStep3">
+      <div class="step-title">Step 3 — Rate the Work</div>
+      <div class="form-group"><label class="form-label">Overall Rating *</label>
+        <div class="star-group" id="mainStars">
+          <button class="star-btn" onclick="setMain(1)">★</button>
+          <button class="star-btn" onclick="setMain(2)">★</button>
+          <button class="star-btn" onclick="setMain(3)">★</button>
+          <button class="star-btn" onclick="setMain(4)">★</button>
+          <button class="star-btn" onclick="setMain(5)">★</button>
+        </div>
+        <div id="starLbl" style="font-size:0.78rem;color:var(--text-muted)">Tap to rate</div>
+      </div>
+      <div style="font-size:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:8px">Rate Each Aspect</div>
+      <div class="sub-rating"><div class="sub-rl"><span>Reliability</span><span id="rv_r">-</span></div><div class="sub-stars" id="ss_r"></div></div>
+      <div class="sub-rating"><div class="sub-rl"><span>Skill Quality</span><span id="rv_s">-</span></div><div class="sub-stars" id="ss_s"></div></div>
+      <div class="sub-rating"><div class="sub-rl"><span>Punctuality</span><span id="rv_p">-</span></div><div class="sub-stars" id="ss_p"></div></div>
+      <div class="sub-rating"><div class="sub-rl"><span>Communication</span><span id="rv_c">-</span></div><div class="sub-stars" id="ss_c"></div></div>
+      <div class="sub-rating"><div class="sub-rl"><span>Would Rehire?</span><span id="rv_rh">-</span></div><div class="sub-stars" id="ss_rh"></div></div>
+      <div class="btn-row" style="margin-top:1rem"><button class="btn btn-secondary btn-back" onclick="rvPrev(3)">← Back</button>
+        <button class="btn btn-primary" onclick="rvNext(3)">Continue →</button></div>
+    </div>
+
+    <!-- Step 4: Write review -->
+    <div class="rv-step" id="rvStep4">
+      <div class="step-title">Step 4 — Write Your Review</div>
+      <div class="form-group"><label class="form-label">Your Review *</label>
+        <textarea class="form-control" id="rvText" rows="5" placeholder="Describe your experience..."></textarea></div>
+      <div class="btn-row"><button class="btn btn-secondary btn-back" onclick="rvPrev(4)">← Back</button>
+        <button class="btn btn-primary" id="submitBtn" onclick="submitReview()">Submit Review ✅</button></div>
+    </div>
+
+    <!-- Success -->
+    <div class="rv-step" id="rvSuccess">
+      <div class="success-screen">
+        <div class="success-icon">🎉</div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--slate);margin-bottom:6px">Review Submitted!</div>
+        <div style="font-size:0.85rem;color:var(--text-muted);line-height:1.6">Your verified review is now on the blockchain and added to this worker's permanent profile.</div>
+        <div class="tx-hash" id="txDisp"></div>
+      </div>
+    </div>
+
+    <!-- Already reviewed -->
+    <div class="rv-step" id="rvDuplicate">
+      <div class="success-screen">
+        <div class="success-icon">🚫</div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:700;color:var(--red);margin-bottom:6px">No fake reviews allowed!</div>
+        <div style="font-size:0.85rem;color:var(--text-muted)">You have already submitted a review for this worker from this device.</div>
+      </div>
+    </div>
+
+    <!-- Error -->
+    <div class="rv-step" id="rvError">
+      <div class="success-screen">
+        <div class="success-icon">❌</div>
+        <div style="font-family:'Playfair Display',serif;font-size:1.1rem;font-weight:700;color:var(--red);margin-bottom:6px">Invalid QR Code</div>
+        <div style="font-size:0.85rem;color:var(--text-muted)" id="rvErrMsg">This link is not valid. Please scan the correct QR code.</div>
+      </div>
+    </div>
+  </div>
+  <div class="footer">Powered by <strong>WorkTrust</strong> · Blockchain-anchored</div>
+</div>
+<div id="toast" class="toast"></div>
+
+<script src="js/api.js"></script>
+<script>
+const params  = new URLSearchParams(window.location.search);
+const QR_TOKEN = params.get('token');
+const WID      = params.get('wid');
+
+let workerData = null;
+let mainStarVal = 0;
+const sub = { r:0, s:0, p:0, c:0, rh:0 };
+const subMap = [
+  { key:'r', id:'ss_r', label:'rv_r', api:'reliability' },
+  { key:'s', id:'ss_s', label:'rv_s', api:'skillQuality' },
+  { key:'p', id:'ss_p', label:'rv_p', api:'punctuality' },
+  { key:'c', id:'ss_c', label:'rv_c', api:'communication' },
+  { key:'rh',id:'ss_rh',label:'rv_rh',api:'repeatHires' }
+];
+
+document.getElementById('rvDateWork').max = new Date().toISOString().split('T')[0];
+
+// Build sub-star widgets
+subMap.forEach(sm => {
+  const c = document.getElementById(sm.id);
+  for (let i=1;i<=5;i++) {
+    const b=document.createElement('button');
+    b.className='sub-star'; b.textContent='★';
+    b.onclick=()=>setSub(sm.key,i,sm.id,sm.label);
+    c.appendChild(b);
+  }
+});
+
+// Load worker info from URL params
+async function loadWorker() {
+  if (!QR_TOKEN || !WID) { showStep('rvError'); return; }
+  try {
+    const data = await API.get('/workers/'+WID);
+    if (data.error || !data.worker) { showStep('rvError'); return; }
+    workerData = data.worker;
+    const initials = workerData.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const av = document.getElementById('rvAvatar');
+    if (workerData.avatar) { av.innerHTML=`<img src="${workerData.avatar}" alt="avatar"/>`; }
+    else av.textContent = initials;
+    document.getElementById('rvName').textContent  = workerData.name;
+    document.getElementById('rvTrade').textContent = workerData.trade || 'WorkTrust';
+    showStep('rvStep1');
+  } catch(e) { showStep('rvError'); }
+}
+
+function showStep(id) {
+  document.querySelectorAll('.rv-step').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function rvNext(from) {
+  if (from===1) { if(!document.getElementById('rvClientType').value||!document.getElementById('rvClientName').value.trim()){showToast('⚠️ Fill Client Type and Name');return;} }
+  if (from===2) { if(!document.getElementById('rvWorkType').value||!document.getElementById('rvDateWork').value){showToast('⚠️ Fill Work Type and Date');return;} }
+  if (from===3) { if(!mainStarVal){showToast('⚠️ Give an overall rating');return;} }
+  showStep('rvStep'+(from+1));
+}
+function rvPrev(from) { showStep('rvStep'+(from-1)); }
+
+function setMain(val) {
+  mainStarVal=val;
+  document.querySelectorAll('#mainStars .star-btn').forEach((b,i)=>b.classList.toggle('active',i<val));
+  const labels=['','Awful','Poor','Average','Good','Excellent'];
+  document.getElementById('starLbl').textContent=labels[val];
+}
+function setSub(key,val,containerId,labelId) {
+  sub[key]=val;
+  document.querySelectorAll('#'+containerId+' .sub-star').forEach((b,i)=>b.classList.toggle('active',i<val));
+  document.getElementById(labelId).textContent=val+'/5';
+}
+
+async function getRvLoc() {
+  if (!navigator.geolocation){alert('Geolocation not supported');return;}
+  showToast('📍 Getting location...');
+  navigator.geolocation.getCurrentPosition(async pos=>{
+    const {latitude:lat,longitude:lng}=pos.coords;
+    document.getElementById('rvLat').value=lat;
+    document.getElementById('rvLng').value=lng;
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
+      const d=await r.json();const a=d.address;
+      const loc=[a.suburb||a.neighbourhood,a.city||a.town,a.state].filter(Boolean).join(', ');
+      document.getElementById('rvLocText').value=loc;
+      document.getElementById('rvLocDisplay').textContent='📍 '+loc;
+      showToast('✅ Location captured!');
+    }catch{
+      document.getElementById('rvLocText').value=`${lat.toFixed(4)},${lng.toFixed(4)}`;
+      document.getElementById('rvLocDisplay').textContent=`📍 ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    }
+  },()=>showToast('Location access denied.'));
+}
+
+async function submitReview() {
+  const text=document.getElementById('rvText').value.trim();
+  if (text.length<20){showToast('⚠️ Write at least 20 characters');return;}
+  const btn=document.getElementById('submitBtn');
+  btn.textContent='Submitting...';btn.disabled=true;
+  const payload={
+    workerId:WID, qrToken:QR_TOKEN,
+    clientName:document.getElementById('rvClientName').value.trim(),
+    clientType:document.getElementById('rvClientType').value,
+    locationText:document.getElementById('rvLocText').value,
+    lat:document.getElementById('rvLat').value,
+    lng:document.getElementById('rvLng').value,
+    workType:document.getElementById('rvWorkType').value,
+    dateOfWork:document.getElementById('rvDateWork').value,
+    daysWorked:document.getElementById('rvDays').value||1,
+    mainStar:mainStarVal,
+    reliability:sub.r||3, skillQuality:sub.s||3,
+    punctuality:sub.p||3, communication:sub.c||3, repeatHires:sub.rh||3,
+    text
+  };
+  const data=await API.post('/reviews',payload);
+  if (data.error) {
+    if (data.error.toLowerCase().includes('fake')||data.error.toLowerCase().includes('already')){
+      showStep('rvDuplicate'); return;
+    }
+    showToast('❌ '+data.error);btn.textContent='Submit Review ✅';btn.disabled=false;return;
+  }
+  document.getElementById('txDisp').textContent='TX: '+data.txHash;
+  showStep('rvSuccess');
+}
+
+function showToast(msg,dur=2500){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
+
+loadWorker();
+</script>
+</body>
+</html>
