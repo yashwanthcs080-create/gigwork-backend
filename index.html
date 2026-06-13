@@ -7,17 +7,15 @@
 <style>
 body{min-height:100vh;display:flex}
 .split{display:grid;grid-template-columns:1fr 1fr;width:100%;min-height:100vh}
-.left{background:var(--slate);display:flex;flex-direction:column;justify-content:center;padding:3rem;position:relative;overflow:hidden}
-.left::before{content:'';position:absolute;top:-80px;right:-80px;width:320px;height:320px;border-radius:50%;background:radial-gradient(circle,rgba(193,80,46,0.3),transparent 65%)}
-.left::after{content:'';position:absolute;bottom:-60px;left:-60px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(212,134,26,0.2),transparent 65%)}
+.left{background:radial-gradient(circle at 10% 20%, rgba(30, 58, 138, 0.4), transparent 50%), radial-gradient(circle at 90% 80%, rgba(120, 53, 4, 0.25), transparent 50%), #0e1118;display:flex;flex-direction:column;justify-content:center;padding:3rem;position:relative;overflow:hidden}
+.left::before{content:'';position:absolute;top:-20%;right:-20%;width:80%;height:80%;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,0.15),transparent 70%);filter:blur(60px);pointer-events:none}
+.left::after{content:'';position:absolute;bottom:-20%;left:-20%;width:80%;height:80%;border-radius:50%;background:radial-gradient(circle,rgba(146,64,14,0.15),transparent 70%);filter:blur(60px);pointer-events:none}
 .brand{font-size:1.8rem;margin-bottom:2.5rem;position:relative;z-index:1}
+.brand .brand-trust{color:white}
 .brand .brand-work{color:var(--terracotta-light)}
 .headline{font-family:'Playfair Display',serif;font-size:2.2rem;font-weight:900;color:white;line-height:1.2;margin-bottom:1rem;position:relative;z-index:1;letter-spacing:-0.02em}
 .headline em{color:var(--terracotta-light);font-style:normal}
-.desc{font-size:0.9rem;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:1.5rem;position:relative;z-index:1;max-width:340px}
-.features{position:relative;z-index:1}
-.feat{display:flex;align-items:center;gap:12px;margin-bottom:10px;font-size:0.85rem;color:rgba(255,255,255,0.65)}
-.feat-icon{width:30px;height:30px;border-radius:8px;background:rgba(193,80,46,0.25);display:flex;align-items:center;justify-content:center;font-size:0.9rem;flex-shrink:0}
+.desc{font-size:0.9rem;color:rgba(255,255,255,0.5);line-height:1.7;margin-bottom:0px;position:relative;z-index:1;max-width:340px}
 
 .right{display:flex;flex-direction:column;justify-content:center;padding:3rem;background:var(--warm-white);overflow-y:auto}
 .panel{max-width:420px;margin:0 auto;width:100%}
@@ -73,12 +71,7 @@ body{min-height:100vh;display:flex}
     <div class="brand brand-lockup"><span class="brand-trust">Trust</span><span class="brand-work">ವರ್ಕ್</span></div>
     <div class="headline">Your skills.<br>Your <em>reputation.</em><br>Yours forever.</div>
     <div class="desc">India's first portable digital identity for gig workers. Build once, carry everywhere.</div>
-    <div class="features">
-      <div class="feat"><div class="feat-icon">🔐</div>DigiLocker-verified documents + Blockchain</div>
-      <div class="feat"><div class="feat-icon">⛓️</div>Tamper-proof work history on-chain</div>
-      <div class="feat"><div class="feat-icon">📱</div>QR-verified reviews, one per client</div>
-      <div class="feat"><div class="feat-icon">📍</div>Swiggy-style live worker tracking</div>
-    </div>
+
   </div>
 
   <div class="right">
