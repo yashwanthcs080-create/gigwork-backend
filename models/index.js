@@ -8,7 +8,15 @@ const bcrypt   = require('bcryptjs');
 const UserSchema = new mongoose.Schema({
   role:     { type: String, enum: ['worker', 'client'], required: true },
   email:    { type: String, required: true, unique: true, lowercase: true, trim: true },
-  password: { type: String, required: true, minlength: 6 },
+  password: { type: String, minlength: 6 }, // Not required — Google-only users won't have one
+
+  // Google OAuth
+  googleId: { type: String, unique: true, sparse: true },
+
+  // Phone verification
+  phoneVerified: { type: Boolean, default: false },
+  phoneOtp:      { type: String, default: null },
+  phoneOtpExpires: { type: Date, default: null },
 
   // Common profile
   name:     { type: String, required: true, trim: true },
@@ -28,6 +36,7 @@ const UserSchema = new mongoose.Schema({
 
   // ── WORKER ONLY fields ──
   trade:       String,
+  customTrade: String, // When trade is "Other", stores the custom trade name
   experience:  Number,
   available:   { type: Boolean, default: true },
   serviceRadius: { type: Number, default: 30 },
@@ -107,13 +116,14 @@ const UserSchema = new mongoose.Schema({
 
 // Hash password before save
 UserSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password') || !this.password) return next();
   this.password = await bcrypt.hash(this.password, 12);
   next();
 });
 
 // Compare password method
 UserSchema.methods.matchPassword = async function(entered) {
+  if (!this.password) return false;
   return await bcrypt.compare(entered, this.password);
 };
 

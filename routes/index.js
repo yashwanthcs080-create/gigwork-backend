@@ -8,6 +8,8 @@ const QRCode   = require('qrcode');
 const { v4: uuidv4 } = require('uuid');
 const { User, Review, Booking } = require('../models');
 const digilockerService = require('../services/digilockerService');
+const otpService = require('../services/otpService');
+const googleAuthService = require('../services/googleAuthService');
 
 const router = express.Router();
 
@@ -64,18 +66,214 @@ async function recomputeReputation(workerId) {
 //  AUTH ROUTES
 // ════════════════════════════════════════
 
+// Strong password validation
+function validatePassword(password) {
+  const errors = [];
+  if (password.length < 8) errors.push('Minimum 8 characters');
+  if (!/[A-Z]/.test(password)) errors.push('At least one uppercase letter');
+  if (!/[0-9]/.test(password)) errors.push('At least one number');
+  if (!/[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/`~]/.test(password)) errors.push('At least one special character');
+  return errors;
+}
+
+// POST /api/auth/send-otp — Send OTP to phone
+router.post('/auth/send-otp', async (req, res) => {
+  try {
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: 'Phone number is required' });
+    const result = await otpService.sendOTP(phone);
+    res.json(result);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// POST /api/auth/verify-otp — Verify OTP code
+router.post('/auth/verify-otp', async (req, res) => {
+  try {
+    const { phone, code } = req.body;
+    if (!phone || !code) return res.status(400).json({ error: 'Phone and code are required' });
+    const valid = otpService.verifyOTP(phone, code);
+    if (!valid) return res.status(400).json({ error: 'Invalid or expired OTP', verified: false });
+    res.json({ ok: true, verified: true });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// POST /api/auth/lookup-user — Find user by email/phone, send OTP to their phone
+router.post('/auth/lookup-user', async (req, res) => {
+  try {
+    const { identifier } = req.body;
+    if (!identifier) return res.status(400).json({ error: 'Email or phone number is required' });
+
+    // Find user by email or phone
+    const normalized = identifier.trim().toLowerCase();
+    let user = await User.findOne({
+      $or: [
+        { email: normalized },
+        { phone: normalized },
+        { phone: normalized.replace(/^\+91/, '') }
+      ]
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'No account found with this email or phone number' });
+    }
+
+    if (!user.phone) {
+      return res.status(400).json({ error: 'No phone number linked to this account. Please contact support.' });
+    }
+
+    // Send OTP to user's phone (only if not using Firebase)
+    const isFirebase = !!process.env.FIREBASE_API_KEY;
+    if (!isFirebase) {
+      await otpService.sendOTP(user.phone);
+    }
+
+    // Return masked phone and details
+    const masked = '****' + user.phone.slice(-4);
+    res.json({
+      ok: true,
+      found: true,
+      maskedPhone: masked,
+      phone: user.phone,
+      isFirebase
+    });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// POST /api/auth/otp-login — Login with OTP (after lookup-user sent OTP)
+router.post('/api/auth/otp-login', async (req, res) => {
+  try {
+    const { identifier, code, firebaseToken } = req.body;
+    if (!identifier) return res.status(400).json({ error: 'Identifier is required' });
+
+    const normalized = identifier.trim().toLowerCase();
+    const user = await User.findOne({
+      $or: [
+        { email: normalized },
+        { phone: normalized },
+        { phone: normalized.replace(/^\+91/, '') }
+      ]
+    });
+
+    if (!user) return res.status(404).json({ error: 'No account found' });
+    if (!user.phone) return res.status(400).json({ error: 'No phone linked' });
+
+    // Verify OTP
+    if (firebaseToken) {
+      const firebaseAuthService = require('../services/firebaseAuthService');
+      const verified = await firebaseAuthService.verifyFirebaseToken(firebaseToken);
+      // Ensure the verified phone matches user's phone
+      const cleanVerified = verified.phone.replace(/[\s\-\+]/g, '');
+      const cleanUserPhone = user.phone.replace(/[\s\-\+]/g, '');
+      if (!cleanVerified.includes(cleanUserPhone) && !cleanUserPhone.includes(cleanVerified)) {
+        return res.status(400).json({ error: 'Verified phone number does not match account' });
+      }
+    } else {
+      if (!code) return res.status(400).json({ error: 'OTP code is required' });
+      const valid = otpService.verifyOTP(user.phone, code);
+      if (!valid) return res.status(400).json({ error: 'Invalid or expired OTP' });
+    }
+
+    const token = jwt.sign(
+      { id: user._id, role: user.role, name: user.name },
+      process.env.JWT_SECRET || 'dev_secret',
+      { expiresIn: '7d' }
+    );
+
+    res.json({ token, user: sanitizeUser(user) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/auth/google — Google Sign-In
+router.post('/auth/google', async (req, res) => {
+  try {
+    const { credential } = req.body;
+    if (!credential) return res.status(400).json({ error: 'Google credential is required' });
+
+    const profile = await googleAuthService.verifyGoogleToken(credential);
+
+    // Check if user exists by googleId or email
+    let user = await User.findOne({
+      $or: [
+        { googleId: profile.googleId },
+        { email: profile.email }
+      ]
+    });
+
+    if (user) {
+      // Existing user — update googleId if not set
+      if (!user.googleId) {
+        user.googleId = profile.googleId;
+        await user.save();
+      }
+
+      const token = jwt.sign(
+        { id: user._id, role: user.role, name: user.name },
+        process.env.JWT_SECRET || 'dev_secret',
+        { expiresIn: '7d' }
+      );
+
+      return res.json({ token, user: sanitizeUser(user) });
+    }
+
+    // New user — return profile so frontend can route to registration
+    res.json({
+      newUser: true,
+      profile: {
+        email: profile.email,
+        name: profile.name,
+        picture: profile.picture,
+        googleId: profile.googleId
+      }
+    });
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+// POST /api/auth/check-email — Check if email is already registered
+router.post('/auth/check-email', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email is required' });
+    const exists = !!(await User.findOne({ email: email.trim().toLowerCase() }));
+    res.json({ exists });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /api/auth/register
 router.post('/auth/register', upload.single('avatar'), async (req, res) => {
   try {
-    const { role, email, password, name, phone, trade, experience,
-            serviceRadius, hourlyRate, jobRate, neededTrades,
+    const { role, email, password, name, phone, trade, customTrade, experience,
+            neededTrades, googleId,
             street, area, city, state, pin, lat, lng } = req.body;
 
     if (await User.findOne({ email }))
       return res.status(400).json({ error: 'Email already registered' });
 
+    // Password validation (required unless Google sign-up)
+    if (!googleId) {
+      if (!password) return res.status(400).json({ error: 'Password is required' });
+      const pwErrors = validatePassword(password);
+      if (pwErrors.length > 0) {
+        return res.status(400).json({ error: 'Weak password: ' + pwErrors.join(', ') });
+      }
+    }
+
+    // Determine actual trade name
+    const actualTrade = (trade === 'Other' && customTrade) ? customTrade : trade;
+
     // Default skills for workers
-    const defaultSkills = trade === 'Electrician' ? [
+    const defaultSkills = actualTrade === 'Electrician' ? [
       { name:'Electrical Wiring', level:'Expert' },
       { name:'Panel Installation', level:'Expert' },
       { name:'CCTV & Security', level:'Intermediate' },
@@ -94,24 +292,34 @@ router.post('/auth/register', upload.single('avatar'), async (req, res) => {
 
     const qrToken = uuidv4();
 
-    const user = await User.create({
-      role, email, password, name, phone,
-      trade: role==='worker' ? trade : undefined,
+    const userData = {
+      role, email, name, phone,
+      trade: role==='worker' ? actualTrade : undefined,
+      customTrade: (trade === 'Other' && customTrade) ? customTrade : undefined,
       experience: role==='worker' ? Number(experience)||0 : undefined,
       available: true,
-      serviceRadius: Number(serviceRadius)||30,
-      hourlyRate: Number(hourlyRate)||450,
-      jobRate:    Number(jobRate)||2200,
+      serviceRadius: 30,
       neededTrades: role==='client' ? (neededTrades ? JSON.parse(neededTrades) : []) : undefined,
       address: { street, area, city, state, pin, lat: Number(lat)||0, lng: Number(lng)||0 },
       skills: role==='worker' ? defaultSkills : [],
       certifications: role==='worker' ? defaultCerts : [],
       avatar: req.file ? '/uploads/' + req.file.filename : null,
       qrToken: role==='worker' ? qrToken : undefined,
+      phoneVerified: !!req.body.phoneVerified,
       badges: role==='worker' ? [
         { name:'Profile Created', icon:'🆕', earnedAt: new Date(), txHash: fakeTxHash() }
       ] : []
-    });
+    };
+
+    // Google OAuth user
+    if (googleId) {
+      userData.googleId = googleId;
+    }
+    if (password) {
+      userData.password = password;
+    }
+
+    const user = await User.create(userData);
 
     const token = jwt.sign(
       { id: user._id, role: user.role, name: user.name },
@@ -126,7 +334,7 @@ router.post('/auth/register', upload.single('avatar'), async (req, res) => {
   }
 });
 
-// POST /api/auth/login
+// POST /api/auth/login (email+password fallback — kept for backward compat)
 router.post('/auth/login', async (req, res) => {
   try {
     const { email, password } = req.body;

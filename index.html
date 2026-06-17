@@ -4,6 +4,14 @@
 <meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>WorkTrust — Login</title>
 <link rel="stylesheet" href="css/base.css"/>
+<!-- Cropper.js for image cropping -->
+<link href="https://unpkg.com/cropperjs@1/dist/cropper.min.css" rel="stylesheet">
+<script src="https://unpkg.com/cropperjs@1/dist/cropper.min.js"></script>
+<!-- Google Identity Services -->
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<!-- Firebase App and Auth (Compat Version) -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 <style>
 body{min-height:100vh;display:flex}
 .split{display:grid;grid-template-columns:1fr 1fr;width:100%;min-height:100vh}
@@ -58,6 +66,10 @@ body{min-height:100vh;display:flex}
 .map-hint:hover{background:rgba(193,80,46,0.12)}
 .avail-toggle-row{display:flex;align-items:center;gap:14px;padding:12px 16px;background:var(--cream);border-radius:10px;border:1.5px solid var(--border);cursor:pointer;margin-bottom:1rem}
 
+/* Custom trade input */
+.custom-trade-wrap{margin-top:8px;display:none}
+.custom-trade-wrap.show{display:block}
+
 @media(max-width:768px){
   .split{grid-template-columns:1fr}
   .left{display:none}
@@ -81,22 +93,52 @@ body{min-height:100vh;display:flex}
         <button class="tab" onclick="showTab('register')">Register</button>
       </div>
 
-      <!-- LOGIN -->
+      <!-- ══════════════════════════════ -->
+      <!--           LOGIN PANEL          -->
+      <!-- ══════════════════════════════ -->
       <div id="loginPanel">
         <div class="form-heading">Welcome back</div>
-        <div class="form-sub">Sign in to your WorkTrust account</div>
-        <div class="form-group"><label class="form-label">Email</label>
-          <input type="email" class="form-control" id="lEmail" placeholder="you@example.com"/></div>
-        <div class="form-group"><label class="form-label">Password</label>
-          <input type="password" class="form-control" id="lPass" placeholder="••••••••"/>
-          <div class="err" id="loginErr">Invalid email or password.</div></div>
-        <button class="btn btn-primary" onclick="doLogin()" id="loginBtn">Sign In →</button>
-        <div style="text-align:center;margin-top:1rem;font-size:0.82rem;color:var(--text-muted)">
-          <strong>Demo:</strong> ravi@worktrust.in / password123
+        <div class="form-sub">Sign in with your email or phone number</div>
+
+        <!-- OTP Login -->
+        <div id="loginStep1">
+          <div class="form-group">
+            <label class="form-label">Email or Phone Number</label>
+            <input type="text" class="form-control" id="loginIdentifier" placeholder="you@example.com or 9876543210" autocomplete="username"/>
+          </div>
+          <div class="err" id="loginLookupErr"></div>
+          <button class="btn btn-primary" onclick="loginLookup()" id="loginSendBtn">Send OTP →</button>
         </div>
+
+        <!-- OTP Entry -->
+        <div id="loginStep2" class="hidden">
+          <div class="otp-sent-msg">OTP sent to <strong class="masked-phone" id="loginMaskedPhone"></strong></div>
+          <div class="otp-inputs" id="loginOtpInputs">
+            <input type="text" maxlength="1" inputmode="numeric" autocomplete="one-time-code"/>
+            <input type="text" maxlength="1" inputmode="numeric"/>
+            <input type="text" maxlength="1" inputmode="numeric"/>
+            <input type="text" maxlength="1" inputmode="numeric"/>
+            <input type="text" maxlength="1" inputmode="numeric"/>
+            <input type="text" maxlength="1" inputmode="numeric"/>
+          </div>
+          <div class="err" id="loginOtpErr"></div>
+          <button class="btn btn-primary" onclick="loginVerifyOtp()" id="loginVerifyBtn">Verify & Sign In →</button>
+          <div class="resend-row">
+            <button class="resend-btn" id="loginResendBtn" onclick="loginResendOtp()" disabled>Resend OTP</button>
+            <span id="loginResendTimer">(30s)</span>
+          </div>
+          <button class="btn btn-ghost btn-sm" style="margin-top:0.5rem;width:100%" onclick="loginGoBack()">← Change email/phone</button>
+        </div>
+
+        <div class="auth-divider">or</div>
+
+        <!-- Google Sign-In -->
+        <div id="googleLoginBtn" class="google-btn-wrapper" style="display:flex;justify-content:center;margin-top:1rem;"></div>
       </div>
 
-      <!-- REGISTER -->
+      <!-- ══════════════════════════════ -->
+      <!--         REGISTER PANEL         -->
+      <!-- ══════════════════════════════ -->
       <div id="registerPanel" class="hidden">
         <div class="form-heading">Create Account</div>
         <div class="form-sub">Step <span id="stepNum">0</span> of <span id="totalSteps">4</span></div>
@@ -122,14 +164,26 @@ body{min-height:100vh;display:flex}
           <button class="btn btn-primary" onclick="nextStep(0)">Continue →</button>
         </div>
 
-        <!-- STEP 1: Email + Password -->
+        <!-- STEP 1: Email + Password (or Google Sign-Up) -->
         <div class="reg-step hidden" id="regStep1">
+          <div id="googleRegBtn" class="google-btn-wrapper" style="display:flex;justify-content:center;margin-bottom:1rem;"></div>
+          <div class="auth-divider">or use email</div>
+          <div id="googleRegInfo" class="auth-info success hidden"></div>
           <div class="form-group"><label class="form-label">Email Address *</label>
-            <input type="email" class="form-control" id="rEmail" placeholder="your@email.com"/>
-            <div class="err" id="errEmail">Enter a valid email.</div></div>
-          <div class="form-group"><label class="form-label">Password *</label>
-            <input type="password" class="form-control" id="rPass" placeholder="Min 6 characters"/></div>
-          <div class="form-group"><label class="form-label">Confirm Password *</label>
+            <input type="email" class="form-control" id="rEmail" placeholder="your@email.com" onblur="checkEmailExists()"/>
+            <div class="err" id="errEmail"></div></div>
+          <div class="form-group" id="passwordGroup"><label class="form-label">Password *</label>
+            <input type="password" class="form-control" id="rPass" placeholder="Min 8 chars, uppercase, number, special" oninput="checkPasswordStrength()"/>
+            <div class="pw-strength" id="pwStrength">
+              <div class="pw-bar"><div class="pw-bar-fill" id="pwBarFill" style="width:0%;background:var(--red)"></div></div>
+              <div class="pw-rules">
+                <div class="pw-rule" id="pwLen"><div class="check">✓</div> 8+ characters</div>
+                <div class="pw-rule" id="pwUpper"><div class="check">✓</div> Uppercase letter</div>
+                <div class="pw-rule" id="pwNum"><div class="check">✓</div> Number</div>
+                <div class="pw-rule" id="pwSpecial"><div class="check">✓</div> Special character</div>
+              </div>
+            </div></div>
+          <div class="form-group" id="confirmPassGroup"><label class="form-label">Confirm Password *</label>
             <input type="password" class="form-control" id="rPass2" placeholder="Repeat password"/>
             <div class="err" id="errPass">Passwords don't match.</div></div>
           <div class="btn-row">
@@ -138,15 +192,50 @@ body{min-height:100vh;display:flex}
           </div>
         </div>
 
-        <!-- STEP 2: Name + Trade + Avatar (dynamic) -->
+        <!-- STEP 2: Phone + OTP Verification -->
         <div class="reg-step hidden" id="regStep2">
+          <div id="phoneEntrySection">
+            <div class="form-group">
+              <label class="form-label">Mobile Number (WhatsApp) *</label>
+              <div class="phone-input-wrap">
+                <div class="phone-prefix"><span>🇮🇳</span> +91</div>
+                <input type="tel" class="form-control" id="rPhone" placeholder="9876543210" maxlength="10" inputmode="numeric"/>
+              </div>
+            </div>
+            <div class="err" id="errPhone"></div>
+            <button class="btn btn-primary" onclick="regSendOtp()" id="regSendOtpBtn">Send OTP →</button>
+          </div>
+          <div id="phoneOtpSection" class="hidden">
+            <div class="otp-sent-msg">OTP sent to <strong>+91 <span id="regPhoneDisplay"></span></strong></div>
+            <div class="otp-inputs" id="regOtpInputs">
+              <input type="text" maxlength="1" inputmode="numeric" autocomplete="one-time-code"/>
+              <input type="text" maxlength="1" inputmode="numeric"/>
+              <input type="text" maxlength="1" inputmode="numeric"/>
+              <input type="text" maxlength="1" inputmode="numeric"/>
+              <input type="text" maxlength="1" inputmode="numeric"/>
+              <input type="text" maxlength="1" inputmode="numeric"/>
+            </div>
+            <div class="err" id="errOtp"></div>
+            <button class="btn btn-primary" onclick="regVerifyOtp()" id="regVerifyOtpBtn">Verify →</button>
+            <div class="resend-row">
+              <button class="resend-btn" id="regResendBtn" onclick="regResendOtp()" disabled>Resend OTP</button>
+              <span id="regResendTimer">(30s)</span>
+            </div>
+          </div>
+          <div class="btn-row" style="margin-top:1rem">
+            <button class="btn btn-secondary btn-back" onclick="prevStep(2)">← Back</button>
+          </div>
+        </div>
+
+        <!-- STEP 3: Name + Trade + Avatar -->
+        <div class="reg-step hidden" id="regStep3">
           <div class="form-group">
             <label class="form-label">Profile Photo (optional)</label>
             <div class="avatar-upload-wrap">
               <div class="avatar-preview" id="avatarPreview">?</div>
               <div>
                 <label class="upload-btn-label" for="avatarFile">📷 Upload Photo</label>
-                <input type="file" id="avatarFile" accept="image/*" style="display:none" onchange="previewAvatar(this)"/>
+                <input type="file" id="avatarFile" accept="image/*" style="display:none" onchange="openCropModal(this)"/>
                 <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;">JPEG/PNG, max 5MB</div>
               </div>
             </div>
@@ -154,29 +243,31 @@ body{min-height:100vh;display:flex}
           <div class="form-group"><label class="form-label">Full Name *</label>
             <input type="text" class="form-control" id="rName" placeholder="e.g. Ravi Kumar"/></div>
           <div class="form-group"><label class="form-label" id="tradeLabel">Primary Trade *</label>
-            <select class="form-control" id="rTrade">
+            <select class="form-control" id="rTrade" onchange="onTradeChange()">
               <option value="">Select trade</option>
               <option>Electrician</option><option>Plumber</option><option>Carpenter</option>
               <option>Painter</option><option>HVAC Technician</option><option>Welder</option>
               <option>Mason / Civil Worker</option><option>Delivery Agent</option>
               <option>Driver</option><option>Domestic Worker</option><option>Cook / Chef</option>
               <option>Security Guard</option><option>Freelancer (IT/Design)</option><option>Other</option>
-            </select></div>
+            </select>
+            <div class="custom-trade-wrap" id="customTradeWrap">
+              <input type="text" class="form-control" id="rCustomTrade" placeholder="Enter your trade / profession" style="margin-top:6px"/>
+            </div>
+          </div>
           <div class="form-group" id="expGroup">
             <label class="form-label">Years of Experience *</label>
             <input type="number" class="form-control" id="rExp" placeholder="e.g. 9" min="0" max="60"/>
           </div>
-          <div class="form-group"><label class="form-label">Mobile Number (WhatsApp)</label>
-            <input type="tel" class="form-control" id="rPhone" placeholder="9876543210" maxlength="10"/></div>
-          <div class="err" id="errStep2">Please fill all required fields.</div>
+          <div class="err" id="errStep3">Please fill all required fields.</div>
           <div class="btn-row">
-            <button class="btn btn-secondary btn-back" onclick="prevStep(2)">← Back</button>
-            <button class="btn btn-primary" onclick="nextStep(2)">Continue →</button>
+            <button class="btn btn-secondary btn-back" onclick="prevStep(3)">← Back</button>
+            <button class="btn btn-primary" onclick="nextStep(3)">Continue →</button>
           </div>
         </div>
 
-        <!-- STEP 3: Address -->
-        <div class="reg-step hidden" id="regStep3">
+        <!-- STEP 4: Address + Final -->
+        <div class="reg-step hidden" id="regStep4">
           <div class="form-group"><label class="form-label">House / Street *</label>
             <input type="text" class="form-control" id="rStreet" placeholder="e.g. 12B Linking Road"/></div>
           <div class="form-group"><label class="form-label">Area / Locality *</label>
@@ -189,20 +280,13 @@ body{min-height:100vh;display:flex}
           </div>
           <div class="form-group"><label class="form-label">PIN Code *</label>
             <input type="text" class="form-control" id="rPin" placeholder="400050" maxlength="6"/>
-            <div class="err" id="errStep3">Fill all fields with valid 6-digit PIN.</div>
+            <div class="err" id="errStep4">Fill all fields with valid 6-digit PIN.</div>
           </div>
-          <div class="map-hint" onclick="detectLoc()">📍 Auto-fill via GPS</div>
+          <div class="map-hint" onclick="detectLoc()">📍 Detect My Location</div>
           <input type="hidden" id="rLat"/><input type="hidden" id="rLng"/>
-          <div class="btn-row" style="margin-top:1rem">
-            <button class="btn btn-secondary btn-back" onclick="prevStep(3)">← Back</button>
-            <button class="btn btn-primary" onclick="nextStep(3)">Continue →</button>
-          </div>
-        </div>
 
-        <!-- STEP 4: Worker rates / Client needs (dynamic) -->
-        <div class="reg-step hidden" id="regStep4">
-          <!-- Worker: rates + availability -->
-          <div id="workerExtras">
+          <!-- Worker: availability only (no rates) -->
+          <div id="workerExtras" class="hidden" style="margin-top:1rem">
             <div class="form-group">
               <label class="form-label">Availability</label>
               <div class="avail-toggle-row" onclick="toggleAvailReg()" id="availToggleReg">
@@ -213,25 +297,16 @@ body{min-height:100vh;display:flex}
                 </div>
               </div>
             </div>
-            <div class="form-group"><label class="form-label">Service Radius</label>
-              <select class="form-control" id="rRadius">
-                <option value="10">Within 10 km</option><option value="20">Within 20 km</option>
-                <option value="30" selected>Within 30 km</option><option value="50">Within 50 km</option>
-              </select></div>
-            <div class="form-grid-2">
-              <div class="form-group"><label class="form-label">Hourly Rate (₹)</label>
-                <input type="number" class="form-control" id="rHourly" placeholder="450" min="0"/></div>
-              <div class="form-group"><label class="form-label">Per-Job Rate (₹)</label>
-                <input type="number" class="form-control" id="rJobRate" placeholder="2200" min="0"/></div>
-            </div>
           </div>
+
           <!-- Client: needed trades -->
-          <div id="clientExtras" class="hidden">
+          <div id="clientExtras" class="hidden" style="margin-top:1rem">
             <div class="form-group">
               <label class="form-label">What workers do you usually need?</label>
               <div id="tradeCheckboxes" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;"></div>
             </div>
           </div>
+
           <div class="btn-row" style="margin-top:1rem">
             <button class="btn btn-secondary btn-back" onclick="prevStep(4)">← Back</button>
             <button class="btn btn-primary" onclick="doRegister()" id="regBtn">Create My Profile 🎉</button>
@@ -241,10 +316,28 @@ body{min-height:100vh;display:flex}
     </div>
   </div>
 </div>
+
+<!-- Crop Modal -->
+<div class="crop-modal-backdrop" id="cropModal">
+  <div class="crop-modal">
+    <div style="font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:700;margin-bottom:1rem;color:var(--slate);">Crop Profile Photo</div>
+    <div class="crop-container">
+      <img id="cropImage" src="" alt="Crop preview"/>
+    </div>
+    <div class="crop-actions">
+      <button class="btn btn-secondary" onclick="closeCropModal()" style="flex:1">Cancel</button>
+      <button class="btn btn-primary" onclick="applyCrop()" style="flex:2">✂️ Crop & Save</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script src="js/api.js"></script>
 <script>
+// ═══════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════
 if (API.isLoggedIn()) {
   const u = API.getUser();
   window.location.href = u?.role === 'worker' ? 'worker-profile.html' : 'client-home.html';
@@ -253,32 +346,320 @@ if (API.isLoggedIn()) {
 let selectedRole = '';
 let regAvailable = true;
 let currentStep  = 0;
+let googleProfile = null; // Stores Google sign-up profile data
+let croppedBlob = null;   // Stores cropped image blob
+let cropperInstance = null;
+let phoneVerified = false;
 
-const WORKER_STEPS = 4; // 0..4
-const CLIENT_STEPS = 4;
+// ═══════════════════════════════════════
+//  OTP INPUT BEHAVIOR (auto-focus next)
+// ═══════════════════════════════════════
+function initOtpInputs(containerId) {
+  const container = document.getElementById(containerId);
+  const inputs = container.querySelectorAll('input');
+  inputs.forEach((inp, i) => {
+    inp.addEventListener('input', () => {
+      inp.value = inp.value.replace(/\D/g, '');
+      if (inp.value && i < inputs.length - 1) inputs[i+1].focus();
+      inp.classList.toggle('filled', !!inp.value);
+    });
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !inp.value && i > 0) {
+        inputs[i-1].focus();
+        inputs[i-1].value = '';
+        inputs[i-1].classList.remove('filled');
+      }
+    });
+    inp.addEventListener('paste', e => {
+      e.preventDefault();
+      const text = (e.clipboardData||window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+      text.split('').forEach((ch, j) => {
+        if (inputs[j]) { inputs[j].value = ch; inputs[j].classList.add('filled'); }
+      });
+      if (inputs[text.length-1]) inputs[Math.min(text.length, inputs.length-1)].focus();
+    });
+  });
+}
 
-// Build step dots
-function buildDots(total) {
-  const c = document.getElementById('stepDots');
-  c.innerHTML = '';
-  for (let i=1;i<=total;i++) {
-    const d = document.createElement('div');
-    d.className = 'step-dot'; d.id = 'sd'+i; d.textContent = i;
-    c.appendChild(d);
-    if (i<total) { const l=document.createElement('div'); l.className='step-line'; l.id='sl'+i; c.appendChild(l); }
+function getOtpValue(containerId) {
+  return [...document.getElementById(containerId).querySelectorAll('input')].map(i=>i.value).join('');
+}
+
+function clearOtpInputs(containerId) {
+  document.getElementById(containerId).querySelectorAll('input').forEach(i => { i.value=''; i.classList.remove('filled'); });
+}
+
+// ═══════════════════════════════════════
+//  RESEND TIMER
+// ═══════════════════════════════════════
+function startResendTimer(btnId, timerId, seconds, onResend) {
+  const btn = document.getElementById(btnId);
+  const timer = document.getElementById(timerId);
+  btn.disabled = true;
+  let remaining = seconds;
+  timer.textContent = `(${remaining}s)`;
+  const interval = setInterval(() => {
+    remaining--;
+    timer.textContent = `(${remaining}s)`;
+    if (remaining <= 0) {
+      clearInterval(interval);
+      btn.disabled = false;
+      timer.textContent = '';
+    }
+  }, 1000);
+}
+
+function formatE164(phone) {
+  phone = phone.replace(/[\s\-\+]/g, '');
+  if (phone.length === 10) return '+91' + phone;
+  if (phone.length === 12 && phone.startsWith('91')) return '+' + phone;
+  return '+' + phone;
+}
+
+// ═══════════════════════════════════════
+//  LOGIN FLOW
+// ═══════════════════════════════════════
+let loginIdentifierValue = '';
+let isFirebaseLogin = false;
+let loginConfirmationResult = null;
+
+async function loginLookup() {
+  const identifier = document.getElementById('loginIdentifier').value.trim();
+  if (!identifier) { showLoginErr('Please enter your email or phone number.'); return; }
+  
+  const btn = document.getElementById('loginSendBtn');
+  btn.textContent = 'Sending OTP...'; btn.disabled = true;
+  hideLoginErr();
+
+  try {
+    const data = await API.post('/auth/lookup-user', { identifier });
+    if (data.error) { showLoginErr(data.error); btn.textContent='Send OTP →'; btn.disabled=false; return; }
+    
+    loginIdentifierValue = identifier;
+    isFirebaseLogin = !!data.isFirebase;
+
+    if (isFirebaseLogin) {
+      if (!window.firebaseAuthInstance) {
+        showLoginErr('Firebase Auth not initialized. Please try again.');
+        btn.textContent='Send OTP →'; btn.disabled=false;
+        return;
+      }
+      const formattedPhone = formatE164(data.phone);
+      window.firebaseAuthInstance.signInWithPhoneNumber(formattedPhone, window.recaptchaVerifier)
+        .then((confirmationResult) => {
+          loginConfirmationResult = confirmationResult;
+          document.getElementById('loginMaskedPhone').textContent = data.maskedPhone;
+          document.getElementById('loginStep1').classList.add('hidden');
+          document.getElementById('loginStep2').classList.remove('hidden');
+          clearOtpInputs('loginOtpInputs');
+          document.getElementById('loginOtpInputs').querySelector('input').focus();
+          startResendTimer('loginResendBtn', 'loginResendTimer', 30);
+          showToast('📱 OTP sent to your phone via Firebase!');
+          btn.textContent='Send OTP →'; btn.disabled=false;
+        })
+        .catch((err) => {
+          showLoginErr('Firebase Auth Error: ' + err.message);
+          btn.textContent='Send OTP →'; btn.disabled=false;
+        });
+    } else {
+      document.getElementById('loginMaskedPhone').textContent = data.maskedPhone;
+      document.getElementById('loginStep1').classList.add('hidden');
+      document.getElementById('loginStep2').classList.remove('hidden');
+      clearOtpInputs('loginOtpInputs');
+      document.getElementById('loginOtpInputs').querySelector('input').focus();
+      startResendTimer('loginResendBtn', 'loginResendTimer', 30);
+      showToast(data.mock ? '📱 Dev mode: Use code 123456' : '📱 OTP sent to your phone!');
+      btn.textContent='Send OTP →'; btn.disabled=false;
+    }
+  } catch(e) {
+    showLoginErr(e.message || 'Something went wrong');
+    btn.textContent='Send OTP →'; btn.disabled=false;
   }
 }
 
-// Populate trade checkboxes for client
-function buildTradeCheckboxes() {
-  const trades = ['Electrician','Plumber','Carpenter','Painter','HVAC','Domestic Worker','Cook','Driver','Security Guard'];
-  document.getElementById('tradeCheckboxes').innerHTML = trades.map(t =>
-    `<label style="display:flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:500">
-      <input type="checkbox" value="${t}" style="accent-color:var(--terracotta)"/> ${t}
-    </label>`
-  ).join('');
+async function loginVerifyOtp() {
+  const code = getOtpValue('loginOtpInputs');
+  if (code.length !== 6) { showErr('loginOtpErr', 'Enter the 6-digit OTP'); return; }
+  
+  const btn = document.getElementById('loginVerifyBtn');
+  btn.textContent = 'Verifying...'; btn.disabled = true;
+  hideErr('loginOtpErr');
+
+  try {
+    if (isFirebaseLogin) {
+      if (!loginConfirmationResult) {
+        showErr('loginOtpErr', 'No verification context found. Request another OTP.');
+        btn.textContent='Verify & Sign In →'; btn.disabled=false;
+        return;
+      }
+      loginConfirmationResult.confirm(code)
+        .then(async (result) => {
+          const userToken = await result.user.getIdToken();
+          const data = await API.post('/auth/otp-login', {
+            identifier: loginIdentifierValue,
+            firebaseToken: userToken
+          });
+          if (data.error) {
+            showErr('loginOtpErr', data.error);
+            btn.textContent='Verify & Sign In →'; btn.disabled=false;
+            return;
+          }
+          API.setSession(data.token, data.user);
+          window.location.href = data.user.role === 'worker' ? 'worker-profile.html' : 'client-home.html';
+        })
+        .catch((err) => {
+          showErr('loginOtpErr', 'Invalid or expired OTP: ' + err.message);
+          btn.textContent='Verify & Sign In →'; btn.disabled=false;
+        });
+    } else {
+      const data = await API.post('/auth/otp-login', { identifier: loginIdentifierValue, code });
+      if (data.error) {
+        showErr('loginOtpErr', data.error);
+        btn.textContent='Verify & Sign In →'; btn.disabled=false;
+        return;
+      }
+      API.setSession(data.token, data.user);
+      window.location.href = data.user.role === 'worker' ? 'worker-profile.html' : 'client-home.html';
+    }
+  } catch(e) {
+    showErr('loginOtpErr', e.message || 'Verification failed');
+    btn.textContent='Verify & Sign In →'; btn.disabled=false;
+  }
 }
 
+async function loginResendOtp() {
+  try {
+    await loginLookup();
+  } catch(e) { showToast('❌ '+e.message); }
+}
+
+function loginGoBack() {
+  document.getElementById('loginStep1').classList.remove('hidden');
+  document.getElementById('loginStep2').classList.add('hidden');
+  hideLoginErr();
+}
+
+function showLoginErr(msg) { const e=document.getElementById('loginLookupErr'); e.textContent=msg; e.classList.add('show'); }
+function hideLoginErr() { document.getElementById('loginLookupErr').classList.remove('show'); }
+function showErr(id,msg) { const e=document.getElementById(id); e.textContent=msg; e.classList.add('show'); }
+function hideErr(id) { document.getElementById(id).classList.remove('show'); }
+
+// ═══════════════════════════════════════
+//  GOOGLE SIGN-IN (Login + Register)
+// ═══════════════════════════════════════
+async function handleGoogleCredential(response) {
+  const credential = response.credential;
+  const isRegister = !document.getElementById('registerPanel').classList.contains('hidden');
+  
+  try {
+    const data = await API.post('/auth/google', { credential });
+    if (data.error) { showToast('❌ ' + data.error); return; }
+    
+    if (data.newUser) {
+      showToast('📋 Please complete your registration details.');
+      
+      // Ensure we are on the register panel
+      showTab('register');
+      setStep(1); // Set to step 1 (where name, email are shown)
+      
+      googleProfile = data.profile;
+      document.getElementById('rEmail').value = googleProfile.email;
+      document.getElementById('rEmail').readOnly = true;
+      document.getElementById('googleRegInfo').textContent = '✅ Google account linked: ' + googleProfile.email;
+      document.getElementById('googleRegInfo').classList.remove('hidden');
+      
+      // Auto-fill name if step 3
+      document.getElementById('rName').value = googleProfile.name || '';
+      
+      // Hide password fields since they registered with Google
+      document.getElementById('passwordGroup').classList.add('hidden');
+      document.getElementById('confirmPassGroup').classList.add('hidden');
+      
+      // Directly advance to step 2 (Phone verification)
+      nextStep(1); 
+      return;
+    }
+    
+    // Existing user
+    API.setSession(data.token, data.user);
+    showToast(isRegister ? '✅ Account exists! Logging you in...' : '✅ Welcome back!');
+    setTimeout(() => {
+      window.location.href = data.user.role === 'worker' ? 'worker-profile.html' : 'client-home.html';
+    }, 700);
+  } catch(e) { showToast('❌ ' + e.message); }
+}
+
+function initGoogleButtons() {
+  if (typeof google === 'undefined' || !google.accounts) {
+    setTimeout(initGoogleButtons, 100);
+    return;
+  }
+
+  google.accounts.id.initialize({
+    client_id: window.GOOGLE_CLIENT_ID,
+    callback: handleGoogleCredential,
+    auto_select: false
+  });
+
+  const loginBtn = document.getElementById('googleLoginBtn');
+  if (loginBtn) {
+    google.accounts.id.renderButton(loginBtn, {
+      theme: 'outline',
+      size: 'large',
+      text: 'signin_with',
+      shape: 'rectangular',
+      width: loginBtn.parentElement.clientWidth || 300
+    });
+  }
+
+  const regBtn = document.getElementById('googleRegBtn');
+  if (regBtn) {
+    google.accounts.id.renderButton(regBtn, {
+      theme: 'outline',
+      size: 'large',
+      text: 'signup_with',
+      shape: 'rectangular',
+      width: regBtn.parentElement.clientWidth || 300
+    });
+  }
+}
+
+function initFirebase() {
+  if (typeof firebase === 'undefined') {
+    setTimeout(initFirebase, 100);
+    return;
+  }
+  firebase.initializeApp(window.FIREBASE_CONFIG);
+  window.firebaseAuthInstance = firebase.auth();
+  
+  // Initialize reCAPTCHA
+  window.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+    'size': 'invisible',
+    'callback': (response) => {}
+  });
+}
+
+// Load Google + Firebase config from server config
+window.GOOGLE_CLIENT_ID = '';
+window.FIREBASE_CONFIG = null;
+window.firebaseAuthInstance = null;
+
+fetch('/api/config').then(r=>r.json()).then(cfg => {
+  window.GOOGLE_CLIENT_ID = cfg.googleClientId || '';
+  window.FIREBASE_CONFIG = cfg.firebaseConfig || null;
+  
+  if (cfg.otpMockMode) console.log('📱 OTP Mock Mode: Use code 123456');
+  if (window.GOOGLE_CLIENT_ID) {
+    initGoogleButtons();
+  }
+  if (window.FIREBASE_CONFIG) {
+    initFirebase();
+  }
+}).catch(()=>{});
+
+// ═══════════════════════════════════════
+//  TAB / STEP NAVIGATION
+// ═══════════════════════════════════════
 function showTab(tab) {
   document.querySelectorAll('.tab').forEach((b,i)=>b.classList.toggle('active',(tab==='login'&&i===0)||(tab==='register'&&i===1)));
   document.getElementById('loginPanel').classList.toggle('hidden', tab!=='login');
@@ -291,11 +672,22 @@ function selectRole(role) {
   document.getElementById('roleClient').classList.toggle('selected', role==='client');
 }
 
+function buildDots(total) {
+  const c = document.getElementById('stepDots');
+  c.innerHTML = '';
+  for (let i=1;i<=total;i++) {
+    const d = document.createElement('div');
+    d.className = 'step-dot'; d.id = 'sd'+i; d.textContent = i;
+    c.appendChild(d);
+    if (i<total) { const l=document.createElement('div'); l.className='step-line'; l.id='sl'+i; c.appendChild(l); }
+  }
+}
+
 function setStep(n) {
   document.querySelectorAll('.reg-step').forEach((s,i)=>s.classList.toggle('hidden',i!==n));
   document.getElementById('stepNum').textContent = n;
-  const total = selectedRole==='client'?4:4;
-  document.getElementById('progFill').style.width = (n/(total)*100)+'%';
+  const total = 4;
+  document.getElementById('progFill').style.width = (n/total*100)+'%';
   document.querySelectorAll('.step-dot').forEach((d,i)=>{
     d.classList.toggle('active',i+1===n);
     d.classList.toggle('done',i+1<n);
@@ -304,9 +696,13 @@ function setStep(n) {
   currentStep = n;
 
   // Dynamic UI based on role
-  if (n===2) {
+  if (n===3) {
     document.getElementById('tradeLabel').textContent = selectedRole==='client' ? 'Primary Trade Needed *' : 'Primary Trade *';
     document.getElementById('expGroup').classList.toggle('hidden', selectedRole==='client');
+    // Pre-fill name from Google profile
+    if (googleProfile && !document.getElementById('rName').value) {
+      document.getElementById('rName').value = googleProfile.name || '';
+    }
   }
   if (n===4) {
     document.getElementById('workerExtras').classList.toggle('hidden', selectedRole!=='worker');
@@ -315,7 +711,7 @@ function setStep(n) {
   }
 }
 
-function nextStep(from) {
+async function nextStep(from) {
   if (from===0) {
     if (!selectedRole) { document.getElementById('errRole').style.display='block'; return; }
     document.getElementById('errRole').style.display='none';
@@ -323,139 +719,412 @@ function nextStep(from) {
     document.getElementById('totalSteps').textContent = 4;
   }
   if (from===1) {
-    const email=document.getElementById('rEmail').value.trim();
-    const pass=document.getElementById('rPass').value;
-    const pass2=document.getElementById('rPass2').value;
-    if (!email||!email.includes('@')){ document.getElementById('errEmail').classList.add('show');return;}
-    document.getElementById('errEmail').classList.remove('show');
-    if (pass!==pass2||pass.length<6){ document.getElementById('errPass').classList.add('show');return;}
-    document.getElementById('errPass').classList.remove('show');
+    // Validate email
+    const email = document.getElementById('rEmail').value.trim();
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(email)) {
+      showErr('errEmail', 'Please enter a valid email address (e.g. name@domain.com).'); return;
+    }
+    hideErr('errEmail');
+
+    // Check if email already registered in DB
+    try {
+      const data = await API.post('/auth/check-email', { email });
+      if (data.exists) {
+        showErr('errEmail', 'This email is already registered. Try logging in.'); return;
+      }
+    } catch(e) {
+      showErr('errEmail', 'Error checking email. Please try again.'); return;
+    }
+
+    // Validate password (skip if Google sign-up)
+    if (!googleProfile) {
+      const pass = document.getElementById('rPass').value;
+      const pass2 = document.getElementById('rPass2').value;
+      const pwErrors = [];
+      if (pass.length < 8) pwErrors.push('min 8 chars');
+      if (!/[A-Z]/.test(pass)) pwErrors.push('uppercase');
+      if (!/[0-9]/.test(pass)) pwErrors.push('number');
+      if (!/[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/`~]/.test(pass)) pwErrors.push('special char');
+      if (pwErrors.length > 0) {
+        showErr('errPass', 'Password needs: ' + pwErrors.join(', ')); return;
+      }
+      if (pass !== pass2) {
+        showErr('errPass', "Passwords don't match."); return;
+      }
+      hideErr('errPass');
+    }
   }
   if (from===2) {
-    const name=document.getElementById('rName').value.trim();
-    const trade=document.getElementById('rTrade').value;
-    const exp=document.getElementById('rExp').value;
-    if (!name||!trade||(selectedRole==='worker'&&!exp)){
-      document.getElementById('errStep2').classList.add('show');return;
+    if (!phoneVerified) {
+      showToast('⚠️ Please verify your phone number first.');
+      return;
     }
-    document.getElementById('errStep2').classList.remove('show');
-    // update avatar initials
-    const initials=name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-    const ap=document.getElementById('avatarPreview');
-    if (!ap.querySelector('img')) ap.textContent=initials;
   }
   if (from===3) {
-    const pin=document.getElementById('rPin').value.trim();
-    if(!document.getElementById('rStreet').value.trim()||!document.getElementById('rCity').value.trim()||!/^\d{6}$/.test(pin)){
-      document.getElementById('errStep3').classList.add('show');return;
+    const name = document.getElementById('rName').value.trim();
+    const trade = document.getElementById('rTrade').value;
+    const exp = document.getElementById('rExp').value;
+    const customTrade = document.getElementById('rCustomTrade').value.trim();
+    
+    if (!name || !trade || (selectedRole==='worker' && !exp)) {
+      showErr('errStep3', 'Please fill all required fields.'); return;
     }
-    document.getElementById('errStep3').classList.remove('show');
+    if (trade === 'Other' && !customTrade) {
+      showErr('errStep3', 'Please enter your trade name.'); return;
+    }
+    hideErr('errStep3');
+    
+    // Update avatar initials
+    const initials = name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+    const ap = document.getElementById('avatarPreview');
+    if (!ap.querySelector('img')) ap.textContent = initials;
   }
   setStep(from+1);
 }
 
 function prevStep(from) { setStep(from-1); }
 
+// ═══════════════════════════════════════
+//  PASSWORD STRENGTH METER
+// ═══════════════════════════════════════
+function checkPasswordStrength() {
+  const pass = document.getElementById('rPass').value;
+  const rules = {
+    pwLen: pass.length >= 8,
+    pwUpper: /[A-Z]/.test(pass),
+    pwNum: /[0-9]/.test(pass),
+    pwSpecial: /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/`~]/.test(pass)
+  };
+  let score = Object.values(rules).filter(Boolean).length;
+
+  Object.entries(rules).forEach(([id, pass]) => {
+    document.getElementById(id).classList.toggle('pass', pass);
+  });
+
+  const fill = document.getElementById('pwBarFill');
+  const colors = ['var(--red)', 'var(--red)', '#F0A830', '#F0A830', 'var(--green)'];
+  fill.style.width = (score/4*100)+'%';
+  fill.style.background = colors[score];
+}
+
+// ═══════════════════════════════════════
+//  EMAIL CHECK
+// ═══════════════════════════════════════
+async function checkEmailExists() {
+  const email = document.getElementById('rEmail').value.trim();
+  if (!email) return;
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(email)) {
+    showErr('errEmail', 'Please enter a valid email address (e.g. name@domain.com).');
+    return;
+  }
+  
+  const data = await API.post('/auth/check-email', { email });
+  if (data.exists) {
+    showErr('errEmail', 'This email is already registered. Try logging in.');
+  } else {
+    hideErr('errEmail');
+  }
+}
+
+// ═══════════════════════════════════════
+//  PHONE OTP (Registration)
+// ═══════════════════════════════════════
+let regConfirmationResult = null;
+
+async function regSendOtp() {
+  const phone = document.getElementById('rPhone').value.trim();
+  if (!/^\d{10}$/.test(phone)) { showErr('errPhone', 'Enter a valid 10-digit mobile number.'); return; }
+  hideErr('errPhone');
+  
+  const btn = document.getElementById('regSendOtpBtn');
+  btn.textContent = 'Sending...'; btn.disabled = true;
+
+  try {
+    if (window.firebaseAuthInstance) {
+      const formattedPhone = formatE164(phone);
+      window.firebaseAuthInstance.signInWithPhoneNumber(formattedPhone, window.recaptchaVerifier)
+        .then((confirmationResult) => {
+          regConfirmationResult = confirmationResult;
+          document.getElementById('regPhoneDisplay').textContent = phone.slice(0,2)+'****'+phone.slice(-4);
+          document.getElementById('phoneEntrySection').classList.add('hidden');
+          document.getElementById('phoneOtpSection').classList.remove('hidden');
+          clearOtpInputs('regOtpInputs');
+          document.getElementById('regOtpInputs').querySelector('input').focus();
+          startResendTimer('regResendBtn', 'regResendTimer', 30);
+          showToast('📱 OTP sent via Firebase!');
+          btn.textContent='Send OTP →'; btn.disabled=false;
+        })
+        .catch((err) => {
+          showErr('errPhone', 'Firebase Auth Error: ' + err.message);
+          btn.textContent='Send OTP →'; btn.disabled=false;
+        });
+    } else {
+      const data = await API.post('/auth/send-otp', { phone });
+      if (data.error) { showErr('errPhone', data.error); btn.textContent='Send OTP →'; btn.disabled=false; return; }
+      
+      document.getElementById('regPhoneDisplay').textContent = phone.slice(0,2)+'****'+phone.slice(-4);
+      document.getElementById('phoneEntrySection').classList.add('hidden');
+      document.getElementById('phoneOtpSection').classList.remove('hidden');
+      clearOtpInputs('regOtpInputs');
+      document.getElementById('regOtpInputs').querySelector('input').focus();
+      startResendTimer('regResendBtn', 'regResendTimer', 30);
+      showToast(data.mock ? '📱 Dev mode: Use code 123456' : '📱 OTP sent to your phone!');
+      btn.textContent='Send OTP →'; btn.disabled=false;
+    }
+  } catch(e) {
+    showErr('errPhone', e.message);
+    btn.textContent='Send OTP →'; btn.disabled=false;
+  }
+}
+
+async function regVerifyOtp() {
+  const code = getOtpValue('regOtpInputs');
+  if (code.length !== 6) { showErr('errOtp', 'Enter the 6-digit OTP.'); return; }
+  hideErr('errOtp');
+  
+  const phone = document.getElementById('rPhone').value.trim();
+  const btn = document.getElementById('regVerifyOtpBtn');
+  btn.textContent = 'Verifying...'; btn.disabled = true;
+
+  try {
+    if (window.firebaseAuthInstance) {
+      if (!regConfirmationResult) {
+        showErr('errOtp', 'Verification context missing. Resend OTP.');
+        btn.textContent='Verify →'; btn.disabled=false;
+        return;
+      }
+      regConfirmationResult.confirm(code)
+        .then(() => {
+          phoneVerified = true;
+          showToast('✅ Phone verified!');
+          setStep(3);
+        })
+        .catch((err) => {
+          showErr('errOtp', 'Invalid code: ' + err.message);
+          btn.textContent='Verify →'; btn.disabled=false;
+        });
+    } else {
+      const data = await API.post('/auth/verify-otp', { phone, code });
+      if (data.error) {
+        showErr('errOtp', data.error);
+        btn.textContent='Verify →'; btn.disabled=false;
+        return;
+      }
+      phoneVerified = true;
+      showToast('✅ Phone verified!');
+      setStep(3);
+    }
+  } catch(e) {
+    showErr('errOtp', e.message);
+    btn.textContent='Verify →'; btn.disabled=false;
+  }
+}
+
+async function regResendOtp() {
+  try {
+    await regSendOtp();
+  } catch(e) { showToast('❌ '+e.message); }
+}
+
+// ═══════════════════════════════════════
+//  TRADE "OTHER" SELECTION
+// ═══════════════════════════════════════
+function onTradeChange() {
+  const trade = document.getElementById('rTrade').value;
+  const wrap = document.getElementById('customTradeWrap');
+  wrap.classList.toggle('show', trade === 'Other');
+  if (trade !== 'Other') document.getElementById('rCustomTrade').value = '';
+}
+
+// ═══════════════════════════════════════
+//  IMAGE CROPPING (Cropper.js)
+// ═══════════════════════════════════════
+function openCropModal(input) {
+  const file = input.files[0];
+  if (!file) return;
+  if (file.size > 5*1024*1024) { showToast('❌ Image must be under 5MB'); return; }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const img = document.getElementById('cropImage');
+    img.src = e.target.result;
+    document.getElementById('cropModal').classList.add('open');
+    
+    // Destroy previous instance
+    if (cropperInstance) cropperInstance.destroy();
+    
+    // Init Cropper after image loads
+    img.onload = () => {
+      cropperInstance = new Cropper(img, {
+        aspectRatio: 1,
+        viewMode: 1,
+        dragMode: 'move',
+        cropBoxResizable: true,
+        cropBoxMovable: true,
+        guides: false,
+        center: true,
+        highlight: false,
+        background: false
+      });
+    };
+  };
+  reader.readAsDataURL(file);
+}
+
+function closeCropModal() {
+  document.getElementById('cropModal').classList.remove('open');
+  if (cropperInstance) { cropperInstance.destroy(); cropperInstance = null; }
+  // Reset file input
+  document.getElementById('avatarFile').value = '';
+}
+
+function applyCrop() {
+  if (!cropperInstance) return;
+  
+  const canvas = cropperInstance.getCroppedCanvas({
+    width: 400,
+    height: 400,
+    imageSmoothingEnabled: true,
+    imageSmoothingQuality: 'high'
+  });
+
+  // Show preview
+  const ap = document.getElementById('avatarPreview');
+  ap.innerHTML = `<img src="${canvas.toDataURL()}" alt="avatar"/>`;
+
+  // Store blob for upload
+  canvas.toBlob(blob => {
+    croppedBlob = blob;
+    closeCropModal();
+    showToast('✅ Photo cropped!');
+  }, 'image/jpeg', 0.9);
+}
+
+// ═══════════════════════════════════════
+//  AVAILABILITY TOGGLE
+// ═══════════════════════════════════════
 function toggleAvailReg() {
   regAvailable=!regAvailable;
   document.getElementById('regToggle').classList.toggle('on',regAvailable);
   document.getElementById('availRegLabel').textContent=regAvailable?'Available Now':'Currently Busy';
 }
 
-function previewAvatar(input) {
-  const file=input.files[0];
-  if (!file) return;
-  const reader=new FileReader();
-  reader.onload=e=>{
-    const ap=document.getElementById('avatarPreview');
-    ap.innerHTML=`<img src="${e.target.result}" alt="avatar"/>`;
-  };
-  reader.readAsDataURL(file);
-}
-
+// ═══════════════════════════════════════
+//  GPS LOCATION (Nominatim - free)
+// ═══════════════════════════════════════
 async function detectLoc() {
-  if (!navigator.geolocation){alert('Geolocation not supported');return;}
+  if (!navigator.geolocation) { showToast('❌ Geolocation not supported'); return; }
   showToast('📍 Getting location...');
-  navigator.geolocation.getCurrentPosition(async pos=>{
-    const {latitude:lat,longitude:lng}=pos.coords;
-    document.getElementById('rLat').value=lat;
-    document.getElementById('rLng').value=lng;
-    try{
-      const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
-      const d=await r.json();const a=d.address;
-      document.getElementById('rStreet').value=(a.road||a.pedestrian||'')+(a.house_number?' '+a.house_number:'');
-      document.getElementById('rArea').value=a.suburb||a.neighbourhood||a.county||'';
-      document.getElementById('rCity').value=a.city||a.town||a.village||'';
-      document.getElementById('rState').value=a.state||'';
-      document.getElementById('rPin').value=a.postcode||'';
+  navigator.geolocation.getCurrentPosition(async pos => {
+    const {latitude:lat, longitude:lng} = pos.coords;
+    document.getElementById('rLat').value = lat;
+    document.getElementById('rLng').value = lng;
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lng}&addressdetails=1`, {
+        headers: { 'User-Agent': 'WorkTrust/1.0' }
+      });
+      const d = await r.json();
+      const a = d.address;
+      document.getElementById('rStreet').value = (a.road || a.pedestrian || a.footway || '') + (a.house_number ? ' ' + a.house_number : '');
+      document.getElementById('rArea').value = a.suburb || a.neighbourhood || a.county || a.village || '';
+      document.getElementById('rCity').value = a.city || a.town || a.village || a.state_district || '';
+      document.getElementById('rState').value = a.state || '';
+      document.getElementById('rPin').value = a.postcode || '';
       showToast('✅ Location auto-filled!');
-    }catch{showToast('Could not auto-fill. Enter manually.');}
-  },()=>showToast('Location access denied.'));
+    } catch { showToast('❌ Could not auto-fill. Enter manually.'); }
+  }, () => showToast('❌ Location access denied.'), { enableHighAccuracy: true, timeout: 10000 });
 }
 
+// ═══════════════════════════════════════
+//  TRADE CHECKBOXES (Client)
+// ═══════════════════════════════════════
+function buildTradeCheckboxes() {
+  const trades = ['Electrician','Plumber','Carpenter','Painter','HVAC','Domestic Worker','Cook','Driver','Security Guard'];
+  document.getElementById('tradeCheckboxes').innerHTML = trades.map(t =>
+    `<label style="display:flex;align-items:center;gap:5px;padding:5px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:500">
+      <input type="checkbox" value="${t}" style="accent-color:var(--terracotta)"/> ${t}
+    </label>`
+  ).join('');
+}
+
+// ═══════════════════════════════════════
+//  REGISTER SUBMIT
+// ═══════════════════════════════════════
 async function doRegister() {
-  const btn=document.getElementById('regBtn');
+  const btn = document.getElementById('regBtn');
+  
+  // Validate step 4
+  const pin = document.getElementById('rPin').value.trim();
+  if (!document.getElementById('rStreet').value.trim() || !document.getElementById('rCity').value.trim() || !/^\d{6}$/.test(pin)) {
+    showErr('errStep4', 'Fill all fields with valid 6-digit PIN.'); return;
+  }
+  hideErr('errStep4');
+  
   btn.textContent='Creating profile...'; btn.disabled=true;
   try {
-    const fd=new FormData();
-    fd.append('role',selectedRole);
-    fd.append('email',document.getElementById('rEmail').value.trim());
-    fd.append('password',document.getElementById('rPass').value);
-    fd.append('name',document.getElementById('rName').value.trim());
-    fd.append('phone',document.getElementById('rPhone').value.trim());
-    fd.append('street',document.getElementById('rStreet').value.trim());
-    fd.append('area',document.getElementById('rArea').value.trim());
-    fd.append('city',document.getElementById('rCity').value.trim());
-    fd.append('state',document.getElementById('rState').value.trim());
-    fd.append('pin',document.getElementById('rPin').value.trim());
-    fd.append('lat',document.getElementById('rLat').value||0);
-    fd.append('lng',document.getElementById('rLng').value||0);
-    if (selectedRole==='worker') {
-      fd.append('trade',document.getElementById('rTrade').value);
-      fd.append('experience',document.getElementById('rExp').value||0);
-      fd.append('available',regAvailable);
-      fd.append('serviceRadius',document.getElementById('rRadius').value||30);
-      fd.append('hourlyRate',document.getElementById('rHourly').value||450);
-      fd.append('jobRate',document.getElementById('rJobRate').value||2200);
+    const fd = new FormData();
+    fd.append('role', selectedRole);
+    fd.append('email', document.getElementById('rEmail').value.trim());
+    if (!googleProfile) {
+      fd.append('password', document.getElementById('rPass').value);
     } else {
-      fd.append('trade',document.getElementById('rTrade').value);
-      const checked=[...document.querySelectorAll('#tradeCheckboxes input:checked')].map(c=>c.value);
-      fd.append('neededTrades',JSON.stringify(checked));
+      fd.append('googleId', googleProfile.googleId);
     }
-    const avatarFile=document.getElementById('avatarFile').files[0];
-    if (avatarFile) fd.append('avatar',avatarFile);
+    fd.append('name', document.getElementById('rName').value.trim());
+    fd.append('phone', document.getElementById('rPhone').value.trim());
+    fd.append('phoneVerified', phoneVerified);
+    fd.append('street', document.getElementById('rStreet').value.trim());
+    fd.append('area', document.getElementById('rArea').value.trim());
+    fd.append('city', document.getElementById('rCity').value.trim());
+    fd.append('state', document.getElementById('rState').value.trim());
+    fd.append('pin', document.getElementById('rPin').value.trim());
+    fd.append('lat', document.getElementById('rLat').value||0);
+    fd.append('lng', document.getElementById('rLng').value||0);
 
-    const data=await API.postForm('/auth/register',fd);
-    if (data.error){showToast('❌ '+data.error);btn.textContent='Create My Profile 🎉';btn.disabled=false;return;}
-    API.setSession(data.token,data.user);
+    const trade = document.getElementById('rTrade').value;
+    fd.append('trade', trade);
+    if (trade === 'Other') {
+      fd.append('customTrade', document.getElementById('rCustomTrade').value.trim());
+    }
+
+    if (selectedRole==='worker') {
+      fd.append('experience', document.getElementById('rExp').value||0);
+      fd.append('available', regAvailable);
+    } else {
+      const checked = [...document.querySelectorAll('#tradeCheckboxes input:checked')].map(c=>c.value);
+      fd.append('neededTrades', JSON.stringify(checked));
+    }
+    
+    // Use cropped blob or original file
+    if (croppedBlob) {
+      fd.append('avatar', croppedBlob, 'avatar.jpg');
+    }
+
+    const data = await API.postForm('/auth/register', fd);
+    if (data.error) { showToast('❌ '+data.error); btn.textContent='Create My Profile 🎉'; btn.disabled=false; return; }
+    API.setSession(data.token, data.user);
     showToast('🎉 Profile created!');
-    setTimeout(()=>window.location.href=data.user.role==='worker'?'worker-profile.html':'client-home.html',700);
-  } catch(e){ showToast('❌ '+e.message); btn.textContent='Create My Profile 🎉'; btn.disabled=false; }
+    setTimeout(() => window.location.href = data.user.role === 'worker' ? 'worker-profile.html' : 'client-home.html', 700);
+  } catch(e) { showToast('❌ '+e.message); btn.textContent='Create My Profile 🎉'; btn.disabled=false; }
 }
 
-async function doLogin() {
-  const btn=document.getElementById('loginBtn');
-  btn.textContent='Signing in...'; btn.disabled=true;
-  const data=await API.post('/auth/login',{
-    email:document.getElementById('lEmail').value.trim(),
-    password:document.getElementById('lPass').value
-  });
-  if (data.error){
-    document.getElementById('loginErr').classList.add('show');
-    btn.textContent='Sign In →'; btn.disabled=false; return;
-  }
-  API.setSession(data.token,data.user);
-  window.location.href=data.user.role==='worker'?'worker-profile.html':'client-home.html';
+// ═══════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════
+function showToast(msg, dur=2500) {
+  const t = document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), dur);
 }
 
-function showToast(msg,dur=2500){
-  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),dur);
-}
-
-document.addEventListener('keydown',e=>{
-  if(e.key==='Enter'&&!document.getElementById('loginPanel').classList.contains('hidden')) doLogin();
+// Init OTP inputs on page load
+document.addEventListener('DOMContentLoaded', () => {
+  initOtpInputs('loginOtpInputs');
+  initOtpInputs('regOtpInputs');
 });
 </script>
+<!-- Invisible Recaptcha Container for Firebase Phone Auth -->
+<div id="recaptcha-container" style="display:none;"></div>
 </body>
 </html>
