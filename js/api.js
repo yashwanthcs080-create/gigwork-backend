@@ -12,7 +12,8 @@ const API = {
     return h;
   },
   async handleResponse(r) {
-    if (r.status === 401 || r.status === 403 || (r.status === 404 && r.url.includes('/auth/me'))) {
+    // Only auto-logout on auth failures if we actually have a token (prevents infinite redirect loops)
+    if ((r.status === 401 || r.status === 403) && this.token()) {
       this.logout();
       return { error: 'Session expired. Please log in again.' };
     }

@@ -520,21 +520,45 @@ let digilockerVerification = null;
 document.getElementById('bkDate').min = new Date().toISOString().split('T')[0];
 
 async function init() {
-  const data = await API.get('/workers/'+profileId);
-  if (data.error) {
-    showToast('❌ '+data.error);
-    if (isOwnProfile || data.error.includes('not found')) {
-      setTimeout(() => API.logout(), 1500);
+  try {
+    const data = await API.get('/workers/'+profileId);
+    if (data.error) {
+      showToast('❌ '+data.error);
+      if (isOwnProfile || data.error.includes('not found')) {
+        setTimeout(() => API.logout(), 1500);
+      }
+      return;
     }
-    return;
+    worker = data.worker;
+    reviews = data.reviews || [];
+    renderAll();
+    applyProfileMode();
+    try { await loadDigiLockerVerification(); } catch(e) { console.error('DigiLocker load error:', e); }
+    try { handleDigiLockerRedirectResult(); } catch(e) { console.error('DigiLocker redirect result error:', e); }
+  } catch(e) {
+    console.error('Init error:', e);
+    showToast('❌ Failed to load profile');
+  } finally {
+    // Always reveal content sections so the page is never blank
+    initReveal();
   }
-  worker = data.worker;
-  reviews = data.reviews || [];
-  renderAll();
-  applyProfileMode();
-  await loadDigiLockerVerification();
-  handleDigiLockerRedirectResult();
-  initReveal();
+}
+
+function handleDigiLockerRedirectResult() {
+  const params = new URLSearchParams(window.location.search);
+  const dlResult = params.get('digilocker');
+  if (dlResult === 'success') {
+    showToast('✅ DigiLocker verification completed!');
+    loadDigiLockerVerification();
+  } else if (dlResult === 'failed') {
+    showToast('❌ DigiLocker verification failed. Please try again.');
+  }
+  // Clean URL params
+  if (dlResult) {
+    const url = new URL(window.location);
+    url.searchParams.delete('digilocker');
+    window.history.replaceState({}, '', url);
+  }
 }
 
 function applyProfileMode() {
