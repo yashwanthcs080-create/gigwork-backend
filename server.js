@@ -50,6 +50,11 @@ app.get('/api/config', (req, res) => res.json({
   } : null
 }));
 
+// ── API 404 Handler ──
+app.use('/api/*', (req, res) => {
+  res.status(404).json({ error: `API endpoint not found: ${req.method} ${req.originalUrl}` });
+});
+
 // ── Serve frontend pages ──
 app.get('/review.html', (req, res) =>
   res.sendFile(path.join(__dirname, 'review.html'))
@@ -57,6 +62,14 @@ app.get('/review.html', (req, res) =>
 app.get('*', (req, res) =>
   res.sendFile(path.join(__dirname, 'index.html'))
 );
+
+// ── Global Error Handler ──
+app.use((err, req, res, next) => {
+  console.error('Unhandled server error:', err);
+  res.status(err.status || 500).json({
+    error: err.message || 'Internal Server Error'
+  });
+});
 
 // ════════════════════════════════════════
 //  SOCKET.IO — Live Location Tracking

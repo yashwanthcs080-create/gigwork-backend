@@ -521,7 +521,13 @@ document.getElementById('bkDate').min = new Date().toISOString().split('T')[0];
 
 async function init() {
   const data = await API.get('/workers/'+profileId);
-  if (data.error) { showToast('❌ '+data.error); return; }
+  if (data.error) {
+    showToast('❌ '+data.error);
+    if (isOwnProfile || data.error.includes('not found')) {
+      setTimeout(() => API.logout(), 1500);
+    }
+    return;
+  }
   worker = data.worker;
   reviews = data.reviews || [];
   renderAll();
