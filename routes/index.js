@@ -413,7 +413,7 @@ router.get('/digilocker/callback', async (req, res) => {
     const worker = await User.findById(workerId);
     if (!worker || worker.role !== 'worker') throw new Error('Worker not found');
 
-    const verification = await digilockerService.exchangeCodeForVerifiedProfile({ code, worker });
+    const verification = await digilockerService.exchangeCodeForVerifiedProfile({ code, worker, request: req });
     worker.digilockerVerification = verification;
     await worker.save();
 

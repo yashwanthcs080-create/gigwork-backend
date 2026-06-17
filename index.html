@@ -242,7 +242,7 @@ body{min-height:100vh;display:flex}
           </div>
           <div class="form-group"><label class="form-label">Full Name *</label>
             <input type="text" class="form-control" id="rName" placeholder="e.g. Ravi Kumar"/></div>
-          <div class="form-group"><label class="form-label" id="tradeLabel">Primary Trade *</label>
+          <div class="form-group" id="tradeGroup"><label class="form-label" id="tradeLabel">Primary Trade *</label>
             <select class="form-control" id="rTrade" onchange="onTradeChange()">
               <option value="">Select trade</option>
               <option>Electrician</option><option>Plumber</option><option>Carpenter</option>
@@ -697,8 +697,9 @@ function setStep(n) {
 
   // Dynamic UI based on role
   if (n===3) {
-    document.getElementById('tradeLabel').textContent = selectedRole==='client' ? 'Primary Trade Needed *' : 'Primary Trade *';
-    document.getElementById('expGroup').classList.toggle('hidden', selectedRole==='client');
+    const isClient = selectedRole==='client';
+    document.getElementById('tradeGroup').classList.toggle('hidden', isClient);
+    document.getElementById('expGroup').classList.toggle('hidden', isClient);
     // Pre-fill name from Google profile
     if (googleProfile && !document.getElementById('rName').value) {
       document.getElementById('rName').value = googleProfile.name || '';
@@ -767,10 +768,11 @@ async function nextStep(from) {
     const exp = document.getElementById('rExp').value;
     const customTrade = document.getElementById('rCustomTrade').value.trim();
     
-    if (!name || !trade || (selectedRole==='worker' && !exp)) {
+    const isWorker = selectedRole==='worker';
+    if (!name || (isWorker && !trade) || (isWorker && !exp)) {
       showErr('errStep3', 'Please fill all required fields.'); return;
     }
-    if (trade === 'Other' && !customTrade) {
+    if (isWorker && trade === 'Other' && !customTrade) {
       showErr('errStep3', 'Please enter your trade name.'); return;
     }
     hideErr('errStep3');
