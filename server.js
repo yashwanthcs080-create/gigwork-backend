@@ -38,7 +38,7 @@ app.get('/api/health', (req, res) => res.json({ status: 'ok', time: new Date() }
 
 // ── Public config (exposes only safe-to-share values) ──
 app.get('/api/config', (req, res) => res.json({
-  googleClientId: process.env.GOOGLE_CLIENT_ID || '',
+  googleClientId: process.env.GOOGLE_CLIENT_ID || '736951455554-gfaf277nrsqr06tg2fk5cbkpfqj0c40a.apps.googleusercontent.com',
   otpMockMode: !process.env.FAST2SMS_API_KEY && !process.env.FIREBASE_API_KEY,
   firebaseConfig: process.env.FIREBASE_API_KEY ? {
     apiKey: process.env.FIREBASE_API_KEY,

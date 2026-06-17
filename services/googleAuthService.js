@@ -4,8 +4,9 @@ const { OAuth2Client } = require('google-auth-library');
 let client = null;
 
 function getClient() {
-  if (!client && process.env.GOOGLE_CLIENT_ID) {
-    client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+  const clientId = process.env.GOOGLE_CLIENT_ID || '736951455554-gfaf277nrsqr06tg2fk5cbkpfqj0c40a.apps.googleusercontent.com';
+  if (!client && clientId) {
+    client = new OAuth2Client(clientId);
   }
   return client;
 }
@@ -22,9 +23,10 @@ async function verifyGoogleToken(credential) {
   }
 
   try {
+    const clientId = process.env.GOOGLE_CLIENT_ID || '736951455554-gfaf277nrsqr06tg2fk5cbkpfqj0c40a.apps.googleusercontent.com';
     const ticket = await oauthClient.verifyIdToken({
       idToken: credential,
-      audience: process.env.GOOGLE_CLIENT_ID
+      audience: clientId
     });
 
     const payload = ticket.getPayload();
@@ -43,7 +45,7 @@ async function verifyGoogleToken(credential) {
 }
 
 function isConfigured() {
-  return !!process.env.GOOGLE_CLIENT_ID;
+  return !!(process.env.GOOGLE_CLIENT_ID || '736951455554-gfaf277nrsqr06tg2fk5cbkpfqj0c40a.apps.googleusercontent.com');
 }
 
 module.exports = { verifyGoogleToken, isConfigured };
