@@ -28,8 +28,8 @@ async function seed() {
         {name:'EV Charging Points',level:'Beginner'}
       ],
       certifications:[
-        {id:'aadhaar',name:'Aadhaar Verification',issuer:'UIDAI',icon:'🪪',verified:true,txHash:fakeTx(),verifiedAt:new Date()},
-        {id:'iti',name:'ITI Electrician Certificate',issuer:'Govt ITI Mumbai',icon:'📜',verified:true,txHash:fakeTx(),verifiedAt:new Date()},
+        {id:'aadhaar',name:'Aadhaar Verification',issuer:'UIDAI',icon:'🪪',verified:false},
+        {id:'iti',name:'ITI Electrician Certificate',issuer:'Govt ITI Mumbai',icon:'📜',verified:false},
         {id:'license',name:'Wireman License',issuer:'MSEDCL',icon:'⚡',verified:false},
         {id:'safety',name:'Safety Training',issuer:'NSDC',icon:'🏥',verified:false},
         {id:'police',name:'Police Verification',issuer:'Mumbai Police',icon:'🚔',verified:false}
@@ -37,8 +37,7 @@ async function seed() {
       badges:[
         {name:'Top Rated 2024',icon:'⭐',earnedAt:new Date(),txHash:fakeTx()},
         {name:'200+ Jobs',icon:'🏆',earnedAt:new Date(),txHash:fakeTx()},
-        {name:'5-Star Streak',icon:'🔥',earnedAt:new Date(),txHash:fakeTx()},
-        {name:'Identity Verified',icon:'🛡️',earnedAt:new Date(),txHash:fakeTx()}
+        {name:'5-Star Streak',icon:'🔥',earnedAt:new Date(),txHash:fakeTx()}
       ],
       portfolioImages:[],
       qrToken: uuidv4(),
@@ -54,11 +53,11 @@ async function seed() {
         {name:'Leak Repair',level:'Expert'},{name:'Water Heater Install',level:'Intermediate'}
       ],
       certifications:[
-        {id:'aadhaar',name:'Aadhaar Verification',issuer:'UIDAI',icon:'🪪',verified:true,txHash:fakeTx(),verifiedAt:new Date()},
+        {id:'aadhaar',name:'Aadhaar Verification',issuer:'UIDAI',icon:'🪪',verified:false},
         {id:'iti',name:'ITI Plumbing Certificate',issuer:'Govt ITI Pune',icon:'📜',verified:false},
         {id:'license',name:'Trade License',issuer:'PMC',icon:'🔧',verified:false},
         {id:'safety',name:'Safety Training',issuer:'NSDC',icon:'🏥',verified:false},
-        {id:'police',name:'Police Verification',issuer:'Pune Police',icon:'🚔',verified:true,txHash:fakeTx(),verifiedAt:new Date()}
+        {id:'police',name:'Police Verification',issuer:'Pune Police',icon:'🚔',verified:false}
       ],
       badges:[{name:'10 Jobs Done',icon:'🌟',earnedAt:new Date(),txHash:fakeTx()}],
       portfolioImages:[], qrToken: uuidv4(),
@@ -74,7 +73,7 @@ async function seed() {
         {name:'Child Care',level:'Intermediate'},{name:'Elderly Care',level:'Intermediate'}
       ],
       certifications:[
-        {id:'aadhaar',name:'Aadhaar Verification',issuer:'UIDAI',icon:'🪪',verified:true,txHash:fakeTx(),verifiedAt:new Date()},
+        {id:'aadhaar',name:'Aadhaar Verification',issuer:'UIDAI',icon:'🪪',verified:false},
         {id:'iti',name:'Domestic Skills Certificate',issuer:'NSDC',icon:'📜',verified:false},
         {id:'license',name:'ID Card',issuer:'Municipal Corp',icon:'🪪',verified:false},
         {id:'safety',name:'First Aid Training',issuer:'Red Cross',icon:'🏥',verified:false},

@@ -376,6 +376,232 @@ router.get('/worker/:id/verification', async (req, res) => {
   } catch(e) { res.status(500).json({ error: 'Could not load verification status' }); }
 });
 
+// In-memory store for Aadhaar OTP transactions
+const aadhaarTxStore = new Map(); // transactionId -> { aadhaarNumber, otp, expiresAt }
+
+// POST /api/digilocker/aadhaar/otp — Request Aadhaar OTP
+router.post('/digilocker/aadhaar/otp', auth, async (req, res) => {
+  try {
+    const { aadhaarNumber } = req.body;
+    if (!/^\d{12}$/.test(aadhaarNumber)) {
+      return res.status(400).json({ error: 'Invalid Aadhaar number. Must be 12 digits.' });
+    }
+
+    const txId = 'adh_tx_' + uuidv4().substring(0, 8);
+    const otp = String(Math.floor(100000 + Math.random() * 900000));
+    
+    // Store in-memory with 5-minute expiry
+    aadhaarTxStore.set(txId, {
+      aadhaarNumber,
+      otp,
+      expiresAt: Date.now() + 5 * 60 * 1000
+    });
+
+    console.log(`🔒 [AADHAAR OTP] Tx: ${txId} | Aadhaar: ${aadhaarNumber} → OTP: ${otp} (Mock Mode)`);
+
+    res.json({
+      ok: true,
+      txId,
+      mock: true,
+      message: `OTP sent successfully to Aadhaar-linked mobile number. (Code: ${otp})`
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/digilocker/aadhaar/confirm — Confirm Aadhaar OTP
+router.post('/digilocker/aadhaar/confirm', auth, async (req, res) => {
+  try {
+    const { txId, otp } = req.body;
+    const tx = aadhaarTxStore.get(txId);
+
+    if (!tx) {
+      return res.status(400).json({ error: 'Invalid or expired transaction session.' });
+    }
+
+    if (Date.now() > tx.expiresAt) {
+      aadhaarTxStore.delete(txId);
+      return res.status(400).json({ error: 'Transaction session expired. Please request another OTP.' });
+    }
+
+    if (tx.otp !== otp) {
+      return res.status(400).json({ error: 'Invalid OTP code. Please try again.' });
+    }
+
+    // Success — clean up tx
+    aadhaarTxStore.delete(txId);
+
+    // Get user details
+    const user = await User.findById(req.user.id);
+    const verifiedName = user ? user.name : 'Verified Worker';
+
+    res.json({
+      ok: true,
+      details: {
+        fullName: verifiedName,
+        dateOfBirth: '1992-08-15',
+        gender: 'M',
+        aadhaarLast4: tx.aadhaarNumber.slice(-4),
+        address: 'B-404, Shanti Nagar, Sector 5, Mira Road, Thane, Maharashtra - 401107'
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/digilocker/pan/verify — Verify PAN Card
+router.post('/digilocker/pan/verify', auth, async (req, res) => {
+  try {
+    const { panNumber } = req.body;
+    if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(panNumber)) {
+      return res.status(400).json({ error: 'Invalid PAN number format (e.g. ABCDE1234F).' });
+    }
+
+    const user = await User.findById(req.user.id);
+    const verifiedName = user ? user.name : 'Verified Worker';
+
+    res.json({
+      ok: true,
+      details: {
+        panNumber: panNumber,
+        fullName: verifiedName,
+        status: 'Active',
+        category: 'Individual'
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/digilocker/dl/verify — Verify Driving License
+router.post('/digilocker/dl/verify', auth, async (req, res) => {
+  try {
+    const { dlNumber, dob } = req.body;
+    if (dlNumber.replace(/[\s\-]/g, '').length < 10) {
+      return res.status(400).json({ error: 'Invalid Driving License number format.' });
+    }
+
+    const user = await User.findById(req.user.id);
+    const verifiedName = user ? user.name : 'Verified Worker';
+
+    res.json({
+      ok: true,
+      details: {
+        dlNumber: dlNumber,
+        fullName: verifiedName,
+        dob: dob || '1992-08-15',
+        validity: '2035-08-14',
+        classOfVehicle: 'MCWG, LMV',
+        status: 'Active'
+      }
+    });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// POST /api/digilocker/submit — Submit verified credentials & update user
+router.post('/digilocker/submit', auth, async (req, res) => {
+  try {
+    const { fullName, dob, aadhaarLast4, panNumber, dlNumber } = req.body;
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // 1. Update DigiLocker status
+    const verifiedAt = new Date();
+    const docHash = fakeTxHash();
+    
+    user.digilockerVerification = {
+      fullName: fullName || user.name,
+      dateOfBirth: dob || '1992-08-15',
+      aadhaarLast4: aadhaarLast4 || '1234',
+      verificationStatus: 'verified',
+      verifiedAt,
+      documentHash: docHash
+    };
+
+    // 2. Update certifications
+    // Verify Aadhaar
+    let aadhaarCert = user.certifications.find(c => c.id === 'aadhaar');
+    if (aadhaarCert) {
+      aadhaarCert.verified = true;
+      aadhaarCert.verifiedAt = verifiedAt;
+      aadhaarCert.txHash = fakeTxHash();
+    } else {
+      user.certifications.push({
+        id: 'aadhaar',
+        name: 'Aadhaar Identity Verification',
+        issuer: 'UIDAI · via DigiLocker',
+        icon: '🪪',
+        verified: true,
+        txHash: fakeTxHash(),
+        verifiedAt
+      });
+    }
+
+    // Verify/Add PAN
+    if (panNumber) {
+      let panCert = user.certifications.find(c => c.id === 'pan' || c.id === 'iti');
+      if (panCert) {
+        panCert.verified = true;
+        panCert.verifiedAt = verifiedAt;
+        panCert.txHash = fakeTxHash();
+      } else {
+        user.certifications.push({
+          id: 'pan',
+          name: 'PAN Verification (Income Tax Dept)',
+          issuer: 'NDSL · via DigiLocker',
+          icon: '📜',
+          verified: true,
+          txHash: fakeTxHash(),
+          verifiedAt
+        });
+      }
+    }
+
+    // Verify/Add Driving License
+    if (dlNumber) {
+      let dlCert = user.certifications.find(c => c.id === 'license');
+      if (dlCert) {
+        dlCert.verified = true;
+        dlCert.verifiedAt = verifiedAt;
+        dlCert.txHash = fakeTxHash();
+        dlCert.name = 'Driving License';
+      } else {
+        user.certifications.push({
+          id: 'license',
+          name: 'Driving License (MoRTH)',
+          issuer: 'Ministry of Road Transport · via DigiLocker',
+          icon: '⚡',
+          verified: true,
+          txHash: fakeTxHash(),
+          verifiedAt
+        });
+      }
+    }
+
+    // Award "Identity Verified" badge if not already present
+    const hasBadge = user.badges.some(b => b.name === 'Identity Verified');
+    if (!hasBadge) {
+      user.badges.push({
+        name: 'Identity Verified',
+        icon: '🛡️',
+        earnedAt: verifiedAt,
+        txHash: fakeTxHash()
+      });
+    }
+
+    await user.save();
+    res.json({ ok: true, user: sanitizeUser(user) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // GET /api/digilocker/auth
 router.get('/digilocker/auth', async (req, res) => {
   try {

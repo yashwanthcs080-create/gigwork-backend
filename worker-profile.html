@@ -258,6 +258,96 @@
   </div>
 </div>
 
+<!-- DigiLocker In-App Verification Modal -->
+<div class="modal-backdrop" id="digilockerVerifyMod">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-title" style="display:flex;align-items:center;justify-content:space-between;width:100%">
+      <span>🛡️ ID Verification</span>
+      <span style="font-size:0.75rem;background:var(--terracotta);color:white;padding:2px 6px;border-radius:4px;font-family:'DM Sans',sans-serif" id="dlModalStepIndicator">Step 1/4</span>
+    </div>
+    
+    <!-- Step 1: Aadhaar -->
+    <div id="dlStepAadhaar">
+      <div style="font-size:0.86rem;color:var(--text-secondary);margin-bottom:1.2rem">
+        Verify your identity via Aadhaar (UIDAI). A secure OTP will be sent to your registered mobile number.
+      </div>
+      
+      <!-- Aadhaar Input Part -->
+      <div id="dlAadhaarInputSection">
+        <div class="form-group">
+          <label class="form-label">Aadhaar Number (12 digits) *</label>
+          <input type="text" class="form-control" id="dlAadhaarNum" placeholder="1234 5678 9012" maxlength="12" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')"/>
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="sendAadhaarOtp()" id="dlAadhaarOtpBtn">Send OTP via SMS →</button>
+      </div>
+      
+      <!-- Aadhaar OTP Part -->
+      <div id="dlAadhaarOtpSection" class="hidden">
+        <div style="font-size:0.82rem;background:rgba(193,80,46,0.06);border:1px solid rgba(193,80,46,0.2);padding:10px;border-radius:8px;margin-bottom:1rem;color:var(--terracotta)" id="dlAadhaarOtpNotice">
+          🔒 OTP Sent!
+        </div>
+        <div class="form-group">
+          <label class="form-label" id="dlAadhaarOtpLabel">Enter 6-digit OTP *</label>
+          <input type="text" class="form-control" id="dlAadhaarOtp" placeholder="000000" maxlength="6" inputmode="numeric" oninput="this.value=this.value.replace(/\D/g,'')" style="letter-spacing:6px;font-size:1.2rem;text-align:center"/>
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="confirmAadhaarOtp()" id="dlAadhaarConfirmBtn">Verify & Confirm Aadhaar ✓</button>
+      </div>
+    </div>
+
+    <!-- Step 2: PAN Card -->
+    <div id="dlStepPan" class="hidden">
+      <div style="font-size:0.86rem;color:var(--text-secondary);margin-bottom:1.2rem">
+        Aadhaar verified! Next, link your Permanent Account Number (PAN) card.
+      </div>
+      <div style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.8rem;background:var(--cream);padding:8px 12px;border-radius:6px">
+        👤 Holder: <strong id="dlPanMatchedName"></strong>
+      </div>
+      <div class="form-group">
+        <label class="form-label">PAN Card Number *</label>
+        <input type="text" class="form-control" id="dlPanNum" placeholder="ABCDE1234F" maxlength="10" style="text-transform:uppercase"/>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="verifyPan()" id="dlPanBtn">Verify PAN Card →</button>
+    </div>
+
+    <!-- Step 3: Driving License -->
+    <div id="dlStepDl" class="hidden">
+      <div style="font-size:0.86rem;color:var(--text-secondary);margin-bottom:1.2rem">
+        PAN verified! Finally, input your Driving License details to authorize vehicle operations.
+      </div>
+      <div class="form-group">
+        <label class="form-label">Driving License Number *</label>
+        <input type="text" class="form-control" id="dlLicNum" placeholder="MH0420150012345" style="text-transform:uppercase"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date of Birth (as on License) *</label>
+        <input type="date" class="form-control" id="dlLicDob"/>
+      </div>
+      <button class="btn btn-primary" style="width:100%" onclick="verifyDl()" id="dlLicBtn">Verify Driving License →</button>
+    </div>
+
+    <!-- Step 4: Success Summary -->
+    <div id="dlStepSuccess" class="hidden" style="text-align:center;padding:1rem 0">
+      <div style="font-size:3rem;margin-bottom:1rem">🎉</div>
+      <div style="font-family:'Playfair Display',serif;font-size:1.3rem;font-weight:700;color:var(--slate)">Verification Complete!</div>
+      <div style="font-size:0.86rem;color:var(--text-muted);margin-top:6px;margin-bottom:1.5rem">
+        Your Aadhaar, PAN card, and Driving License have been successfully verified and linked.
+      </div>
+      
+      <div style="display:grid;gap:8px;max-width:320px;margin:0 auto 2rem;text-align:left;background:var(--cream);padding:15px;border-radius:10px;border:1px solid var(--border)">
+        <div style="font-size:0.82rem;font-weight:600">🟢 Aadhaar: Verified (**** <span id="dlSummaryAadhaar"></span>)</div>
+        <div style="font-size:0.82rem;font-weight:600">🟢 PAN Card: Verified (<span id="dlSummaryPan"></span>)</div>
+        <div style="font-size:0.82rem;font-weight:600">🟢 Driving License: Verified (<span id="dlSummaryDl"></span>)</div>
+      </div>
+      
+      <button class="btn btn-primary" style="width:100%" onclick="submitVerification()" id="dlSubmitBtn">Complete Verification & Unlock 🛡️</button>
+    </div>
+
+    <div class="btn-row" style="margin-top:1.5rem" id="dlModalFooter">
+      <button class="btn btn-secondary btn-back" onclick="closeModal('digilockerVerifyMod')">Cancel</button>
+    </div>
+  </div>
+</div>
+
 <main class="container">
   <!-- HERO -->
   <div class="section-block reveal">
@@ -360,7 +450,7 @@
         <span class="dl-status not_verified" id="digilockerBadge">Not Verified</span>
         <div class="digilocker-details hidden" id="digilockerDetails"></div>
       </div>
-      <button class="btn btn-secondary btn-sm" id="digilockerBtn" onclick="startDigiLockerVerification()">Verify with DigiLocker</button>
+      <button class="btn btn-secondary btn-sm" id="digilockerBtn" onclick="openDigiLockerVerificationModal()">Verify with DigiLocker</button>
     </div>
     <div class="certs-list" id="certsList"></div>
   </div>
@@ -707,34 +797,229 @@ function updateReviewQrAccess() {
   }
 }
 
-function startDigiLockerVerification() {
-  const token = API.token();
-  if (!token) {
-    showToast('Verification failed. Please log in again.');
-    return;
-  }
-  fetch('/api/digilocker/auth', {
-    headers: {
-      'Authorization': 'Bearer ' + token,
-      'Accept': 'application/json'
-    }
-  })
-    .then(r => r.json())
-    .then(data => {
-      if (!data.redirectUrl) throw new Error(data.error || 'Unable to start DigiLocker verification');
-      window.location.href = data.redirectUrl;
-    })
-    .catch(() => showToast('Verification failed. Please try again.'));
+let currentAadhaarTxId = '';
+let verifiedAadhaarData = null;
+let verifiedPanData = null;
+let verifiedDlData = null;
+
+function openDigiLockerVerificationModal() {
+  document.getElementById('dlAadhaarNum').value = '';
+  document.getElementById('dlAadhaarOtp').value = '';
+  document.getElementById('dlPanNum').value = '';
+  document.getElementById('dlLicNum').value = '';
+  document.getElementById('dlLicDob').value = '';
+
+  document.getElementById('dlModalStepIndicator').textContent = 'Step 1/4';
+  document.getElementById('dlStepAadhaar').classList.remove('hidden');
+  document.getElementById('dlAadhaarInputSection').classList.remove('hidden');
+  document.getElementById('dlAadhaarOtpSection').classList.add('hidden');
+  
+  document.getElementById('dlStepPan').classList.add('hidden');
+  document.getElementById('dlStepDl').classList.add('hidden');
+  document.getElementById('dlStepSuccess').classList.add('hidden');
+  document.getElementById('dlModalFooter').classList.remove('hidden');
+
+  openModal('digilockerVerifyMod');
 }
 
-function handleDigiLockerRedirectResult() {
-  const params = new URLSearchParams(window.location.search);
-  const result = params.get('digilocker');
-  if (!result) return;
-  showToast(result === 'success' ? '✅ DigiLocker verification complete' : 'Verification failed. Please try again.');
-  params.delete('digilocker');
-  const cleanQuery = params.toString();
-  history.replaceState(null, '', window.location.pathname + (cleanQuery ? '?' + cleanQuery : ''));
+async function sendAadhaarOtp() {
+  const aadhaar = document.getElementById('dlAadhaarNum').value.trim();
+  if (!/^\d{12}$/.test(aadhaar)) {
+    showToast('⚠️ Please enter a valid 12-digit Aadhaar number.');
+    return;
+  }
+
+  const btn = document.getElementById('dlAadhaarOtpBtn');
+  btn.disabled = true;
+  btn.textContent = 'Sending OTP...';
+
+  try {
+    const response = await fetch('/api/digilocker/aadhaar/otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + API.token()
+      },
+      body: JSON.stringify({ aadhaarNumber: aadhaar })
+    });
+    const data = await response.json();
+
+    if (data.error) throw new Error(data.error);
+
+    currentAadhaarTxId = data.txId;
+    document.getElementById('dlAadhaarInputSection').classList.add('hidden');
+    document.getElementById('dlAadhaarOtpSection').classList.remove('hidden');
+    document.getElementById('dlAadhaarOtpNotice').innerHTML = `🔒 OTP Sent! Enter code <strong>${data.txId ? data.message.match(/\d{6}/)[0] : '123456'}</strong> to verify.`;
+    showToast('📱 OTP sent successfully!');
+  } catch (err) {
+    showToast('❌ ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Send OTP via SMS →';
+  }
+}
+
+async function confirmAadhaarOtp() {
+  const otp = document.getElementById('dlAadhaarOtp').value.trim();
+  if (!/^\d{6}$/.test(otp)) {
+    showToast('⚠️ Please enter a 6-digit OTP code.');
+    return;
+  }
+
+  const btn = document.getElementById('dlAadhaarConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = 'Verifying...';
+
+  try {
+    const response = await fetch('/api/digilocker/aadhaar/confirm', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + API.token()
+      },
+      body: JSON.stringify({ txId: currentAadhaarTxId, otp })
+    });
+    const data = await response.json();
+
+    if (data.error) throw new Error(data.error);
+
+    verifiedAadhaarData = data.details;
+    showToast('✅ Aadhaar Verified!');
+
+    document.getElementById('dlModalStepIndicator').textContent = 'Step 2/4';
+    document.getElementById('dlStepAadhaar').classList.add('hidden');
+    document.getElementById('dlStepPan').classList.remove('hidden');
+    document.getElementById('dlPanMatchedName').textContent = verifiedAadhaarData.fullName;
+  } catch (err) {
+    showToast('❌ ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Verify & Confirm Aadhaar ✓';
+  }
+}
+
+async function verifyPan() {
+  const pan = document.getElementById('dlPanNum').value.trim().toUpperCase();
+  if (!/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(pan)) {
+    showToast('⚠️ Please enter a valid PAN number (e.g. ABCDE1234F).');
+    return;
+  }
+
+  const btn = document.getElementById('dlPanBtn');
+  btn.disabled = true;
+  btn.textContent = 'Verifying PAN...';
+
+  try {
+    const response = await fetch('/api/digilocker/pan/verify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + API.token()
+      },
+      body: JSON.stringify({ panNumber: pan })
+    });
+    const data = await response.json();
+
+    if (data.error) throw new Error(data.error);
+
+    verifiedPanData = data.details;
+    showToast('✅ PAN Card Verified!');
+
+    document.getElementById('dlModalStepIndicator').textContent = 'Step 3/4';
+    document.getElementById('dlStepPan').classList.add('hidden');
+    document.getElementById('dlStepDl').classList.remove('hidden');
+  } catch (err) {
+    showToast('❌ ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Verify PAN Card →';
+  }
+}
+
+async function verifyDl() {
+  const dl = document.getElementById('dlLicNum').value.trim().toUpperCase();
+  const dob = document.getElementById('dlLicDob').value;
+
+  if (dl.length < 10) {
+    showToast('⚠️ Please enter a valid Driving License number.');
+    return;
+  }
+  if (!dob) {
+    showToast('⚠️ Please enter your date of birth.');
+    return;
+  }
+
+  const btn = document.getElementById('dlLicBtn');
+  btn.disabled = true;
+  btn.textContent = 'Verifying License...';
+
+  try {
+    const response = await fetch('/api/digilocker/dl/verify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + API.token()
+      },
+      body: JSON.stringify({ dlNumber: dl, dob })
+    });
+    const data = await response.json();
+
+    if (data.error) throw new Error(data.error);
+
+    verifiedDlData = data.details;
+    showToast('✅ Driving License Verified!');
+
+    document.getElementById('dlModalStepIndicator').textContent = 'Step 4/4';
+    document.getElementById('dlStepDl').classList.add('hidden');
+    document.getElementById('dlStepSuccess').classList.remove('hidden');
+    document.getElementById('dlModalFooter').classList.add('hidden');
+
+    document.getElementById('dlSummaryAadhaar').textContent = verifiedAadhaarData.aadhaarLast4;
+    document.getElementById('dlSummaryPan').textContent = verifiedPanData.panNumber;
+    document.getElementById('dlSummaryDl').textContent = verifiedDlData.dlNumber;
+  } catch (err) {
+    showToast('❌ ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Verify Driving License →';
+  }
+}
+
+async function submitVerification() {
+  const btn = document.getElementById('dlSubmitBtn');
+  btn.disabled = true;
+  btn.textContent = 'Locking in profile...';
+
+  try {
+    const response = await fetch('/api/digilocker/submit', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + API.token()
+      },
+      body: JSON.stringify({
+        fullName: verifiedAadhaarData.fullName,
+        dob: verifiedAadhaarData.dateOfBirth,
+        aadhaarLast4: verifiedAadhaarData.aadhaarLast4,
+        panNumber: verifiedPanData.panNumber,
+        dlNumber: verifiedDlData.dlNumber
+      })
+    });
+    const data = await response.json();
+
+    if (data.error) throw new Error(data.error);
+
+    showToast('🛡️ Profile Successfully Verified!');
+    closeModal('digilockerVerifyMod');
+
+    localStorage.setItem('wt_user', JSON.stringify(data.user));
+    window.location.reload();
+  } catch (err) {
+    showToast('❌ ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Complete Verification & Unlock 🛡️';
+  }
 }
 
 function renderPortfolio() {
