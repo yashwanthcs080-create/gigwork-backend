@@ -146,7 +146,7 @@ router.post('/auth/lookup-user', async (req, res) => {
 });
 
 // POST /api/auth/otp-login — Login with OTP (after lookup-user sent OTP)
-router.post('/api/auth/otp-login', async (req, res) => {
+router.post('/auth/otp-login', async (req, res) => {
   try {
     const { identifier, code, firebaseToken } = req.body;
     if (!identifier) return res.status(400).json({ error: 'Identifier is required' });
